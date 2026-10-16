@@ -1,5 +1,6 @@
 import { API_URL } from "../config";
-import React, { Fragment, useState } from "react";
+import { Fragment, useState } from "react";
+import { authHeader, errorMessage } from "../api";
 
 const InputTodo = ({ getTodos }) => {
   const [description, setDescription] = useState("");
@@ -24,11 +25,11 @@ const InputTodo = ({ getTodos }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token"),
+          ...authHeader(),
         },
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error("Failed to add todo");
+      if (!response.ok) throw new Error(await errorMessage(response, "Failed to add todo"));
       setDescription("");
       setDueDate("");
       setPriority("Low");
@@ -43,7 +44,10 @@ const InputTodo = ({ getTodos }) => {
   return (
     <Fragment>
       {error && (
-        <p className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded">
+        <p
+          role="alert"
+          className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded"
+        >
           {error}
         </p>
       )}
@@ -54,9 +58,11 @@ const InputTodo = ({ getTodos }) => {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Add a new todo"
+          aria-label="New todo description"
         />
         <input
           type="date"
+          aria-label="Due date"
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
@@ -64,6 +70,7 @@ const InputTodo = ({ getTodos }) => {
         <select
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={priority}
+          aria-label="Priority"
           onChange={(e) => setPriority(e.target.value)}
         >
           <option value="Low">Low</option>
@@ -73,6 +80,7 @@ const InputTodo = ({ getTodos }) => {
         <select
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={category}
+          aria-label="Category"
           onChange={(e) => setCategory(e.target.value)}
         >
           <option value="Work">Work</option>

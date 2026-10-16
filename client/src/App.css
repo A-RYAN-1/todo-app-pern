@@ -1,4 +1,3 @@
-/* Ensure Font Awesome is included in index.html */
 .backface-hidden {
   backface-visibility: hidden;
 }
@@ -8,8 +7,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 .animate-pulse {

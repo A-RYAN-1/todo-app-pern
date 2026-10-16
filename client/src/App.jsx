@@ -1,9 +1,10 @@
 import { API_URL } from "./config";
-import React, { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import "./App.css";
 import InputTodo from "./components/InputTodo";
 import ListTodos from "./components/ListTodos";
 import Login from "./components/Login";
+import { authHeader, errorMessage } from "./api";
 
 const App = () => {
   const [todos, setTodos] = useState([]);
@@ -12,25 +13,29 @@ const App = () => {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [notice, setNotice] = useState("");
 
-  const getTodos = async () => {
+  const logout = useCallback(() => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    setUser(null);
+    setTodos([]);
+  }, []);
+
+  const getTodos = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/todos`, {
-        headers: { Authorization: localStorage.getItem("token") },
-      });
-      const jsonData = await response.json();
-      setTodos(jsonData);
+      const response = await fetch(`${API_URL}/todos`, { headers: authHeader() });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
+      if (!response.ok) throw new Error(await errorMessage(response, "Could not load todos"));
+      setTodos(await response.json());
+      setNotice("");
     } catch (err) {
-      console.error(err.message);
+      setNotice(err.message);
     }
-  };
-
-  useEffect(() => {
-    // Do not auto-authenticate on mount; only update todos if authenticated
-    if (isAuthenticated) {
-      getTodos();
-    }
-  }, [isAuthenticated]);
+  }, [logout]);
 
   const login = (username, token) => {
     localStorage.setItem("token", token);
@@ -39,29 +44,20 @@ const App = () => {
     getTodos();
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    setUser(null);
-    setTodos([]);
-  };
-
   const filteredTodos = todos.filter((todo) => {
     const description = todo.description || "";
-    const matchesSearch = description
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesPriority =
-      priorityFilter === "All" || todo.priority === priorityFilter;
-    const matchesCategory =
-      categoryFilter === "All" || todo.category === categoryFilter;
+    const matchesSearch = description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPriority = priorityFilter === "All" || todo.priority === priorityFilter;
+    const matchesCategory = categoryFilter === "All" || todo.category === categoryFilter;
     return matchesSearch && matchesPriority && matchesCategory;
   });
 
   const exportTodos = async () => {
-    const response = await fetch(`${API_URL}/export`, {
-      headers: { Authorization: localStorage.getItem("token") },
-    });
+    const response = await fetch(`${API_URL}/export`, { headers: authHeader() });
+    if (!response.ok) {
+      setNotice(await errorMessage(response, "Export failed"));
+      return;
+    }
     const data = await response.json();
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
     const url = window.URL.createObjectURL(blob);
@@ -73,16 +69,24 @@ const App = () => {
 
   const importTodos = async (event) => {
     const file = event.target.files[0];
-    const text = await file.text();
-    const todos = JSON.parse(text);
-    await fetch(`${API_URL}/import`, {
+    event.target.value = "";
+    if (!file) return;
+    let todos;
+    try {
+      todos = JSON.parse(await file.text());
+    } catch {
+      setNotice("That file is not valid JSON");
+      return;
+    }
+    const response = await fetch(`${API_URL}/import`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: localStorage.getItem("token"),
-      },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ todos }),
     });
+    if (!response.ok) {
+      setNotice(await errorMessage(response, "Import failed"));
+      return;
+    }
     getTodos();
   };
 
@@ -105,6 +109,14 @@ const App = () => {
             </button>
           </div>
         </div>
+        {notice && (
+          <p
+            role="alert"
+            className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded"
+          >
+            {notice}
+          </p>
+        )}
         <div className="border-t border-gray-700 my-6"></div>
         <div className="p-6 bg-gray-800 rounded-lg shadow-lg border border-gray-700 mb-8">
           <h2 className="text-3xl font-bold text-white mb-6">Add Todo</h2>
@@ -120,6 +132,7 @@ const App = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search todos..."
+                aria-label="Search todos"
                 title="Search by todo description"
               />
               <select
@@ -127,6 +140,7 @@ const App = () => {
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
                 title="Filter by priority"
+                aria-label="Filter by priority"
               >
                 <option value="All">All Priorities</option>
                 <option value="Low">Low</option>
@@ -138,6 +152,7 @@ const App = () => {
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 title="Filter by category"
+                aria-label="Filter by category"
               >
                 <option value="All">All Categories</option>
                 <option value="Work">Work</option>
