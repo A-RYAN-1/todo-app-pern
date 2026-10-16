@@ -1,174 +1,99 @@
-# Todo App Using PERN Stack
+# todo-app-pern
 
-This is a Todo application built using the **PERN stack**, which stands for **PostgreSQL**, **Express.js**, **React**, and **Node.js**. The application allows users to create, edit, and delete tasks in a todo list, with data stored in a PostgreSQL database and a RESTful API backend built with Node.js and Express.
+A todo app with accounts: register, log in, then add, edit, complete, delete, export and import your own tasks. PERN stack: PostgreSQL, Express, React, Node.
 
-## Live Working
+Last updated: 2026-10-16. Status: runs locally (baseline), not deployed yet.
 
-- Frontend: React (hosted on Vercel)
-- Backend: Node.js + Express (hosted on Render)
-- Database: PostgreSQL (hosted on Supabase)
-- Link: https://todo-vercel-frontend.vercel.app/
+## Why it exists
 
-## Table of Contents
+A first full-stack project: a REST API with JWT login and per-user data, a React client and a relational schema. It is being brought up to production grade one step at a time (see Status and roadmap).
 
-- [Tech Stack](#tech-stack)
-- [Project Setup](#project-setup)
-- [Backend API](#backend-api)
-  - [Database](#database)
-  - [Express API](#express-api)
-- [Frontend (React)](#frontend-react)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+## Features
 
-## Tech Stack
+- Register and log in; passwords are hashed with bcrypt, logins are JWTs that expire.
+- Todos have a description, due date, priority (Low, Medium, High), category and a done flag; each user sees only their own.
+- Export your todos as JSON and import them back.
 
-This project uses the following technologies:
+## Tech stack
 
-- **Frontend**: React.js
-- **Backend**: Node.js, Express.js
-- **Database**: PostgreSQL
-- **Styling**: Bootstrap for UI components and layout
+| Part | Technology |
+|---|---|
+| Client | React 18 (Create React App), Bootstrap |
+| API | Node 22, Express 4, pg, bcrypt, jsonwebtoken |
+| Database | PostgreSQL 16 (Docker locally) |
 
-## Project Setup
+## Run locally
 
-To set up the project locally, follow the steps below:
+Needs Node 22 (`mise.toml` pins it; `mise install`) and Docker.
 
-1. **Clone the repository**:
+```bash
+git clone https://github.com/A-RYAN-1/todo-app-pern.git
+cd todo-app-pern
 
-    ```bash
-    git clone https://github.com/A-RYAN-1/todo-app-pern.git
-    cd todo-app-pern
-    ```
+# 1. Database (creates the tables from server/database.sql on first start)
+docker compose up -d
 
-2. **Set up the backend (Node.js + Express + PostgreSQL)**:
-   
-    1. Navigate to the `backend` directory:
-    
-        ```bash
-        cd backend
-        ```
+# 2. API on http://localhost:5000
+cd server
+cp .env.example .env        # then set JWT_SECRET, see Environment variables
+npm install
+npm start
 
-    2. Install dependencies:
-    
-        ```bash
-        npm install
-        ```
+# 3. Client on http://localhost:3000 (second terminal)
+cd client
+cp .env.example .env
+npm install
+npm start
+```
 
-    3. Configure the PostgreSQL database connection. Make sure you have PostgreSQL running locally and create a database named `store`.
+Check the API: `curl http://localhost:5000/health` returns `{"status":"ok"}`.
 
-    4. Set up the environment variables (create a `.env` file in the `backend` folder):
+## Environment variables
 
-        ```
-        DB_USER=your_username
-        DB_PASSWORD=your_password
-        DB_HOST=localhost
-        DB_PORT=5432
-        DB_NAME=todos_db
-        ```
+API (`server/.env`, template `server/.env.example`):
 
-    5. Run database migrations (using your preferred PostgreSQL migration strategy, or manually set up the tables based on the structure in `server.js`).
+| Variable | Needed | What it is |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres connection string; the default matches `docker-compose.yml` |
+| `DATABASE_SSL` | no | `true` for hosted databases that require TLS |
+| `JWT_SECRET` | yes | Signing secret, 32+ characters. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `JWT_EXPIRES_IN` | no | Login lifetime, default `7d` |
+| `PORT` | no | API port, default `5000` |
+| `CORS_ORIGIN` | no | Client origin allowed to call the API, default `http://localhost:3000` |
 
-    6. Start the backend server:
+Client (`client/.env`, template `client/.env.example`): `REACT_APP_API_URL`, the API base URL, default `http://localhost:5000`.
 
-        ```bash
-        npm start
-        ```
+## API
 
-3. **Set up the frontend (React)**:
+All routes except `/health`, `/register` and `/login` need the token from `/login` in the `authorization` header.
 
-    1. Navigate to the `frontend` directory:
-    
-        ```bash
-        cd frontend
-        ```
+| Method and path | What it does |
+|---|---|
+| `GET /health` | Database check |
+| `POST /register` | Create an account (username 3-50, password 8-72 characters) |
+| `POST /login` | Returns `{ token }` |
+| `GET /todos`, `POST /todos` | List or create your todos |
+| `PUT /todos/:id`, `DELETE /todos/:id` | Update or delete one of your todos |
+| `GET /export`, `POST /import` | Export or import your todos as JSON |
 
-    2. Install dependencies:
-    
-        ```bash
-        npm install
-        ```
+## Engineering quality (tests, CI, security)
 
-    3. Start the frontend server:
+- Secrets come from environment variables only; no `.env` is tracked.
+- Queries are parameterised; every todo query is scoped to the logged-in user.
+- No tests and no CI yet (next iteration).
 
-        ```bash
-        npm start
-        ```
+## Deployment
 
-4. **Access the application**:
+Not deployed. The earlier hosting (Vercel, Render, Supabase) was removed on 2026-10-16. Plan: Vercel for the client, Render free web service for the API, Neon free Postgres.
 
-    - The backend will run on `http://localhost:5000`.
-    - The frontend will run on `http://localhost:3000`.
+## Status and roadmap
 
-## Backend API
+- [x] Runs locally from this README (2026-10-16)
+- [x] Config in environment variables, secrets untracked, token expiry, input validation on register
+- [ ] API tests and CI
+- [ ] Validation on every route, rate limiting on login, security headers
+- [ ] Deploy on free tiers and add screenshots
 
-The backend consists of a RESTful API built using **Express.js** and **Node.js**.
+## Credits
 
-### Database
-
-We use **PostgreSQL** to store the todo items. The database contains the following table:
-
-- **todos**:
-  - `todo_id`: Integer (Primary Key)
-  - `description`: String (Text)
-
-### Express API
-
-The backend API has the following routes:
-
-- **GET** `/todos`:
-    - Fetch all todos from the database.
-    - Returns a list of todo objects.
-
-- **POST** `/todos`:
-    - Create a new todo.
-    - Expects a `description` field in the request body.
-
-- **PUT** `/todos/:id`:
-    - Update the description of a specific todo by ID.
-    - Expects a `description` field in the request body.
-
-- **DELETE** `/todos/:id`:
-    - Delete a todo by ID.
-
-## Frontend (React)
-
-The frontend is built using **React** and provides an interface for the user to interact with the todo list. It has the following components:
-
-- **InputTodo**: A form for adding new todo items to the list.
-- **ListTodos**: Displays all the todos in a table format, allowing users to edit or delete them.
-- **EditTodo**: Allows users to edit the description of an existing todo item.
-
-### Key Features:
-
-1. **Adding Todos**: The user can input a description and click the "Add" button to save it in the database.
-2. **Editing Todos**: The user can edit the description of any existing todo by clicking the "Edit" button, which triggers a modal form.
-3. **Deleting Todos**: The user can delete any todo from the list, which will remove it from both the UI and the database.
-
-The frontend communicates with the backend through API calls (via **fetch**), sending HTTP requests to the server to interact with the database.
-
-### Styling
-
-The UI is styled using **Bootstrap**, which provides ready-to-use components for buttons, modals, and tables, making the interface responsive and user-friendly.
-
-## Usage
-
-1. Run the frontend and backend servers as mentioned in the Project Setup section.
-2. Open your browser and go to `http://localhost:3000` to access the Todo app.
-3. You can add new todos, edit existing todos, and delete todos from the list.
-
-## Contributing
-
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -am 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a pull request.
-
-## Project Demo
-
-https://github.com/user-attachments/assets/61315650-f34a-4dbd-98c7-b89fcf4b005d
-
-https://github.com/user-attachments/assets/0a05ea13-14de-4119-8e71-9bcb01c1c061
-
-https://github.com/user-attachments/assets/30fc534e-d343-44c7-98f8-acccd4de3a0a
+Built by Aryan Deshmukh.

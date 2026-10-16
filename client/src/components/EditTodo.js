@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import React, { Fragment, useState } from "react";
 
 const EditTodo = ({ todo, getTodos, setEditingTodoId, isEditing }) => {
@@ -29,7 +30,7 @@ const EditTodo = ({ todo, getTodos, setEditingTodoId, isEditing }) => {
         completed,
       };
       const response = await fetch(
-        `http://localhost:5000/todos/${todo.todo_id}`,
+        `${API_URL}/todos/${todo.todo_id}`,
         {
           method: "PUT",
           headers: {

@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import React, { Fragment, useState, useEffect } from "react";
 import EditTodo from "./EditTodo";
 
@@ -6,7 +7,7 @@ const ListTodos = ({ todos, getTodos }) => {
 
   const deleteTodo = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/todos/${id}`, {
+      const response = await fetch(`${API_URL}/todos/${id}`, {
         method: "DELETE",
         headers: { Authorization: localStorage.getItem("token") },
       });
@@ -20,7 +21,7 @@ const ListTodos = ({ todos, getTodos }) => {
   const toggleComplete = async (id, completed) => {
     try {
       const todoToUpdate = todos.find((t) => t.todo_id === id);
-      await fetch(`http://localhost:5000/todos/${id}`, {
+      await fetch(`${API_URL}/todos/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

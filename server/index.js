@@ -4,28 +4,41 @@ const cors = require("cors");
 const pool = require("./connect_server_and_database");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { JWT_SECRET, JWT_EXPIRES_IN, PORT, CORS_ORIGIN } = require("./config");
 
-app.use(cors());
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
-// Secret for JWT
-const JWT_SECRET =
-  "7d6f6832d1a286d2e338aa8904bd9c50ec6f6e4561d32d5d9c125100dd6e6b2f";
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok" });
+  } catch (err) {
+    res.status(503).json({ status: "database unavailable" });
+  }
+});
 
 // Register User
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
-  console.log("Register attempt:", { username, password }); // Add this line
+  if (
+    typeof username !== "string" || username.length < 3 || username.length > 50 ||
+    typeof password !== "string" || password.length < 8 || password.length > 72
+  ) {
+    return res
+      .status(400)
+      .send("Username must be 3-50 characters and password 8-72 characters");
+  }
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await pool.query(
       "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
       [username, hashedPassword]
     );
-    console.log("User created:", newUser.rows[0]); // Add this line
-    res.json(newUser.rows[0]);
+    res.json({ user_id: newUser.rows[0].user_id, username: newUser.rows[0].username });
   } catch (err) {
-    console.error("Registration error:", err.message); // Add this line
+    if (err.code === "23505") return res.status(409).send("Username already taken");
+    console.error("Registration error:", err.message);
     res.status(500).send("Server Error");
   }
 });
@@ -40,7 +53,9 @@ app.post("/login", async (req, res) => {
     if (user.rows.length === 0) return res.status(400).send("User not found");
     const validPassword = await bcrypt.compare(password, user.rows[0].password);
     if (!validPassword) return res.status(400).send("Invalid password");
-    const token = jwt.sign({ id: user.rows[0].user_id }, JWT_SECRET);
+    const token = jwt.sign({ id: user.rows[0].user_id }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
     res.json({ token });
   } catch (err) {
     res.status(500).send("Server Error");
@@ -61,19 +76,11 @@ const authenticateToken = (req, res, next) => {
 // Create a todo (protected route)
 app.post("/todos", authenticateToken, async (req, res) => {
   const { description, due_date, priority, category } = req.body;
-  console.log("Add todo attempt:", {
-    description,
-    due_date,
-    priority,
-    category,
-    user_id: req.user.id,
-  });
   try {
     const newTodo = await pool.query(
       "INSERT INTO todo (user_id, description, due_date, priority, category) VALUES ($1, $2, $3, $4, $5) RETURNING *",
       [req.user.id, description, due_date, priority || "Low", category]
     );
-    console.log("Todo created:", newTodo.rows[0]);
     res.json(newTodo.rows[0]);
   } catch (err) {
     console.error("Todo creation error:", err.message);
@@ -82,13 +89,11 @@ app.post("/todos", authenticateToken, async (req, res) => {
 });
 
 app.get("/todos", authenticateToken, async (req, res) => {
-  console.log("Fetch todos attempt for user:", req.user.id);
   try {
     const allTodos = await pool.query(
       "SELECT * FROM todo WHERE user_id = $1 ORDER BY due_date ASC NULLS LAST",
       [req.user.id]
     );
-    console.log("Todos fetched:", allTodos.rows);
     res.json(allTodos.rows);
   } catch (err) {
     console.error("Todo fetch error:", err.message);
@@ -160,6 +165,6 @@ app.post("/import", authenticateToken, async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log("Server has started on port 5000");
+app.listen(PORT, () => {
+  console.log(`Server has started on port ${PORT}`);
 });

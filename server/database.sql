@@ -1,11 +1,10 @@
-CREATE DATABASE store;
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE todo (
+CREATE TABLE IF NOT EXISTS todo (
     todo_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id),
     description VARCHAR(300),

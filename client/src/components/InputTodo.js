@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import React, { Fragment, useState } from "react";
 
 const InputTodo = ({ getTodos }) => {
@@ -19,7 +20,7 @@ const InputTodo = ({ getTodos }) => {
     }
     try {
       const body = { description, due_date: dueDate, priority, category };
-      const response = await fetch("http://localhost:5000/todos", {
+      const response = await fetch(`${API_URL}/todos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

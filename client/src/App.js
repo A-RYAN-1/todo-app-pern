@@ -1,3 +1,4 @@
+import { API_URL } from "./config";
 import React, { useState, useEffect } from "react";
 import "./App.css";
 import InputTodo from "./components/InputTodo";
@@ -14,7 +15,7 @@ const App = () => {
 
   const getTodos = async () => {
     try {
-      const response = await fetch("http://localhost:5000/todos", {
+      const response = await fetch(`${API_URL}/todos`, {
         headers: { Authorization: localStorage.getItem("token") },
       });
       const jsonData = await response.json();
@@ -58,7 +59,7 @@ const App = () => {
   });
 
   const exportTodos = async () => {
-    const response = await fetch("http://localhost:5000/export", {
+    const response = await fetch(`${API_URL}/export`, {
       headers: { Authorization: localStorage.getItem("token") },
     });
     const data = await response.json();
@@ -74,7 +75,7 @@ const App = () => {
     const file = event.target.files[0];
     const text = await file.text();
     const todos = JSON.parse(text);
-    await fetch("http://localhost:5000/import", {
+    await fetch(`${API_URL}/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

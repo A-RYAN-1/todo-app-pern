@@ -1,3 +1,4 @@
+import { API_URL } from "../config";
 import React, { useState } from "react";
 
 const Login = ({ login }) => {
@@ -8,7 +9,7 @@ const Login = ({ login }) => {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:5000/login", {
+      const response = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -28,14 +29,14 @@ const Login = ({ login }) => {
       return;
     }
     try {
-      const registerResponse = await fetch("http://localhost:5000/register", {
+      const registerResponse = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
       if (!registerResponse.ok) throw new Error("Registration failed");
 
-      const loginResponse = await fetch("http://localhost:5000/login", {
+      const loginResponse = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
