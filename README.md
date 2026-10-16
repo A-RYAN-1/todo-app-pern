@@ -2,7 +2,13 @@
 
 A todo app with accounts: register, log in, then add, edit, complete, delete, export and import your own tasks. PERN stack: PostgreSQL, Express, React, Node.
 
-Last updated: 2026-10-16. Status: runs locally (baseline), not deployed yet.
+Last updated: 2026-10-16. Status: live on free tiers (L2).
+
+## Try it
+
+Live: https://todo-app-pern-gamma.vercel.app
+
+Log in with the demo account `demo` / `demo-pass-123`, or register your own. The API runs on Render's free tier and sleeps when idle, so the first request after a quiet period takes up to a minute.
 
 ## Why it exists
 
@@ -84,7 +90,13 @@ All routes except `/health`, `/register` and `/login` need the token from `/logi
 
 ## Deployment
 
-Not deployed. The earlier hosting (Vercel, Render, Supabase) was removed on 2026-10-16. Plan: Vercel for the client, Render free web service for the API, Neon free Postgres.
+| Part | Host (free tier) | Notes |
+|---|---|---|
+| Client | Vercel Hobby, project `todo-app-pern`, root directory `client` | Static Create React App build, deploys on every push to `main` |
+| API | Render free web service `todo-app-pern-api` (Singapore), root directory `server` | Auto-deploys from `main`, health check on `/health`, sleeps after 15 minutes idle |
+| Database | Neon free Postgres `todo-app-pern-db` (Singapore) | Created through Vercel Storage; schema from `server/database.sql` applied once |
+
+Set on the API host: `DATABASE_URL`, `DATABASE_SSL=true`, `JWT_SECRET`, `CORS_ORIGIN` (the Vercel URL). Set on the client host: `REACT_APP_API_URL` (the Render URL).
 
 ## Status and roadmap
 
@@ -92,7 +104,8 @@ Not deployed. The earlier hosting (Vercel, Render, Supabase) was removed on 2026
 - [x] Config in environment variables, secrets untracked, token expiry, input validation on register
 - [ ] API tests and CI
 - [ ] Validation on every route, rate limiting on login, security headers
-- [ ] Deploy on free tiers and add screenshots
+- [x] Deployed on free tiers (2026-10-16)
+- [ ] Screenshots in this README
 
 ## Credits
 
