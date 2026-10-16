@@ -53,7 +53,7 @@ const Login = ({ login }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="w-full max-w-md p-8 bg-gray-800 rounded-xl shadow-2xl border border-gradient-to-r from-indigo-500 to-purple-500">
         <h1 className="text-4xl font-bold text-white text-center mb-6 tracking-wide animate-pulse">
           Todo Login
@@ -108,7 +108,7 @@ const Login = ({ login }) => {
           </button>
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 

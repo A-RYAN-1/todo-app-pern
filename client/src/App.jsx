@@ -93,7 +93,7 @@ const App = () => {
   if (!isAuthenticated) return <Login login={login} />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 p-4 bg-gray-800 rounded-lg shadow-lg border border-gradient-to-r from-indigo-500 to-purple-500">
           <h1 className="text-5xl font-extrabold text-white tracking-wide animate-pulse">
@@ -187,7 +187,7 @@ const App = () => {
           <ListTodos todos={filteredTodos} getTodos={getTodos} />
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 
