@@ -1,5 +1,6 @@
 import { API_URL } from "../config";
-import React, { useState } from "react";
+import { useState } from "react";
+import { errorMessage } from "../api";
 
 const Login = ({ login }) => {
   const [username, setUsername] = useState("");
@@ -14,7 +15,7 @@ const Login = ({ login }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!response.ok) throw new Error("Login failed");
+      if (!response.ok) throw new Error(await errorMessage(response, "Login failed"));
       const data = await response.json();
       login(username, data.token);
     } catch (err) {
@@ -34,7 +35,8 @@ const Login = ({ login }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!registerResponse.ok) throw new Error("Registration failed");
+      if (!registerResponse.ok)
+        throw new Error(await errorMessage(registerResponse, "Registration failed"));
 
       const loginResponse = await fetch(`${API_URL}/login`, {
         method: "POST",
@@ -46,10 +48,7 @@ const Login = ({ login }) => {
       login(username, data.token);
       setError("");
     } catch (err) {
-      setError(
-        err.message ||
-          "An error occurred during registration. Please try again."
-      );
+      setError(err.message || "An error occurred during registration. Please try again.");
     }
   };
 
@@ -60,7 +59,10 @@ const Login = ({ login }) => {
           Todo Login
         </h1>
         {error && (
-          <p className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded">
+          <p
+            role="alert"
+            className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded"
+          >
             {error}
           </p>
         )}
@@ -72,7 +74,8 @@ const Login = ({ login }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
-              autoComplete="off"
+              aria-label="Username"
+              autoComplete="username"
               autoCapitalize="off"
             />
           </div>
@@ -83,7 +86,8 @@ const Login = ({ login }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              autoComplete="new-password"
+              aria-label="Password"
+              autoComplete="current-password"
             />
           </div>
           <button
@@ -94,7 +98,7 @@ const Login = ({ login }) => {
           </button>
         </form>
         <p className="text-center text-gray-400 mt-6">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <button
             type="button"
             className="text-indigo-400 hover:text-indigo-300 underline transition duration-300"
