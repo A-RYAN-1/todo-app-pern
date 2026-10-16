@@ -37,8 +37,8 @@ To set up the project locally, follow the steps below:
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/A-RYAN-1/Todo-App-Using-PERN-Stack-Development.git
-    cd Todo-App-Using-PERN-Stack-Development
+    git clone https://github.com/A-RYAN-1/todo-app-pern.git
+    cd todo-app-pern
     ```
 
 2. **Set up the backend (Node.js + Express + PostgreSQL)**:
