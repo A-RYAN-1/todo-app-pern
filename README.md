@@ -102,6 +102,7 @@ Things to try in the first two minutes:
 - **Accounts**: register and log in; passwords are hashed with bcrypt; a login is a signed token that expires (7 days by default).
 - **Private lists**: every query is scoped to the logged-in user; another user's todo id returns 404, not their data.
 - **Tasks**: description, due date, priority, category and a done flag; create, edit, tick, delete.
+- **Your own categories**: Work, Personal and Shopping are always there; choose "New category..." in the add or edit form to type your own (up to 50 characters). Every category you have used appears in the forms and the filter, with no setup.
 - **Search and filters**: by text, priority and category.
 - **Overdue and due-soon markers**: overdue tasks get a red outline, tasks due within a day get a badge, and the browser can show a notification if you have already allowed notifications for the site.
 - **Export and import**: your todos as JSON; import is validated item by item and applied in one transaction.
@@ -183,7 +184,8 @@ server/
   test/           unit tests (validation) and API tests (real database)
 client/
   src/App.jsx             state, filters, export and import
-  src/components/         Login, InputTodo, ListTodos, EditTodo, Icon
+  src/components/         Login, InputTodo, ListTodos, EditTodo, CategorySelect, Icon
+  src/categories.js       the category list shown in forms and filter
   src/api.js, config.js   auth header, error messages, API URL
   src/App.test.jsx        client tests
 docker-compose.yml        local Postgres with the schema loaded
@@ -203,7 +205,7 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 | `POST /register` | Create an account: username 3-50, password 8-72 characters | 201 `{user_id, username}` | 400, 409 taken, 429 |
 | `POST /login` | Exchange credentials for a token | 200 `{token}` | 400, 401, 429 |
 | `GET /todos` | Your todos, by due date | 200 list | 401 |
-| `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50), `completed` | 201 todo | 400, 401 |
+| `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50, trimmed; any text, so it can be a custom one), `completed` | 201 todo | 400, 401 |
 | `PUT /todos/:id` | Replace the editable fields of one of your todos | 200 todo | 400, 401, 404 |
 | `DELETE /todos/:id` | Delete one of your todos | 200 `{deleted}` | 400, 401, 404 |
 | `GET /export` | Your todos without ids | 200 list | 401 |
@@ -213,7 +215,7 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 
 | Area | What is in place |
 |---|---|
-| Tests | 21 server tests (9 unit tests for validation, 12 API tests against Postgres: auth, validation, per-user isolation, import rollback, rate limit, health) and 5 client tests (login errors, token storage, ticking a task, expired token). All passing on 2026-10-17. |
+| Tests | 23 server tests (10 unit tests for validation, 13 API tests against Postgres: auth, validation, per-user isolation, import rollback, rate limit, health) and 11 client tests (login errors, token storage, ticking a task, expired token, the category list and a new category). All passing on 2026-10-22. |
 | CI | GitHub Actions on every push and pull request: ESLint, Prettier, migrations, tests and `npm audit` for the API; ESLint, Prettier, tests, build and `npm audit` for the client. |
 | Monitoring | An uptime workflow requests `/health` and the client every 30 minutes; a failure emails the repository owner. |
 | Security | Passwords hashed with bcrypt, tokens expire, helmet headers, CORS limited to the client origin, login and register rate limited, every query parameterised and scoped to the user, secrets only from the environment. `npm audit` for production dependencies: 0 vulnerabilities on 2026-10-17 (server and client). |
@@ -329,14 +331,14 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - Tokens are kept in `localStorage`, so a script injected into the page could read them; there is no refresh token or "log out everywhere".
 - No password reset and no email: a forgotten password cannot be recovered.
 - Rate limiting covers login and register only, and counts per IP address.
-- The category list in the UI is fixed (Work, Personal, Shopping) while the API accepts any text up to 50 characters.
+- Categories cannot be renamed or deleted in one step; a category disappears from the list when no task uses it, and renaming means editing each task.
 - Lighthouse was run on the login page only; the logged-in screens are not audited.
 
 **Planned**
 
 - [ ] Move the token to an httpOnly cookie
 - [ ] Per-user rate limit on todo routes
-- [ ] Custom categories
+- [x] Custom categories (2026-10-22)
 - [ ] Lighthouse for the logged-in screens
 
 ## Credits

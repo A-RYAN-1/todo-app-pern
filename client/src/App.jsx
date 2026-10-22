@@ -5,6 +5,7 @@ import InputTodo from "./components/InputTodo";
 import ListTodos from "./components/ListTodos";
 import Login from "./components/Login";
 import { authHeader, errorMessage } from "./api";
+import { categoryOptions } from "./categories";
 
 const App = () => {
   const [todos, setTodos] = useState([]);
@@ -120,7 +121,7 @@ const App = () => {
         <div className="border-t border-gray-700 my-6"></div>
         <div className="p-6 bg-gray-800 rounded-lg shadow-lg border border-gray-700 mb-8">
           <h2 className="text-3xl font-bold text-white mb-6">Add Todo</h2>
-          <InputTodo getTodos={getTodos} />
+          <InputTodo getTodos={getTodos} todos={todos} />
         </div>
         <div className="p-6 bg-gray-800 rounded-lg shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold text-white mb-6">Todo List</h2>
@@ -155,9 +156,11 @@ const App = () => {
                 aria-label="Filter by category"
               >
                 <option value="All">All Categories</option>
-                <option value="Work">Work</option>
-                <option value="Personal">Personal</option>
-                <option value="Shopping">Shopping</option>
+                {categoryOptions(todos).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
               </select>
               <div className="flex gap-4">
                 <button
@@ -184,7 +187,7 @@ const App = () => {
               </div>
             </div>
           </div>
-          <ListTodos todos={filteredTodos} getTodos={getTodos} />
+          <ListTodos todos={filteredTodos} allTodos={todos} getTodos={getTodos} />
         </div>
       </div>
     </main>

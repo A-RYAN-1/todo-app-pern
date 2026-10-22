@@ -1,13 +1,15 @@
 import { API_URL } from "../config";
 import { Fragment, useState } from "react";
 import { authHeader, errorMessage } from "../api";
+import CategorySelect from "./CategorySelect";
 
-const InputTodo = ({ getTodos }) => {
+const InputTodo = ({ getTodos, todos }) => {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("Low");
   const [category, setCategory] = useState("Personal");
   const [error, setError] = useState("");
+  const [formKey, setFormKey] = useState(0);
 
   const onSubmitForm = async (e) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ const InputTodo = ({ getTodos }) => {
       setDueDate("");
       setPriority("Low");
       setCategory("Personal");
+      setFormKey((key) => key + 1);
       setError("");
       getTodos();
     } catch (err) {
@@ -77,16 +80,13 @@ const InputTodo = ({ getTodos }) => {
           <option value="Medium">Medium</option>
           <option value="High">High</option>
         </select>
-        <select
+        <CategorySelect
+          key={formKey}
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={category}
-          aria-label="Category"
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Shopping">Shopping</option>
-        </select>
+          onChange={setCategory}
+          todos={todos}
+        />
         <button
           className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition duration-300 transform hover:scale-105 font-semibold"
           onClick={onSubmitForm}

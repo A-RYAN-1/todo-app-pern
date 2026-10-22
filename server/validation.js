@@ -42,10 +42,10 @@ function validateTodo(body) {
   }
   let category = null;
   if (!isBlank(b.category)) {
-    if (typeof b.category !== "string" || b.category.length > 50) {
+    if (typeof b.category !== "string" || b.category.trim().length > 50) {
       return { error: "Category must be at most 50 characters" };
     }
-    category = b.category;
+    category = b.category.trim() || null;
   }
   if (b.completed !== undefined && typeof b.completed !== "boolean") {
     return { error: "Completed must be true or false" };

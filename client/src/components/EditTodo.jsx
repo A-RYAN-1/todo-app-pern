@@ -2,8 +2,9 @@ import { API_URL } from "../config";
 import { Fragment, useState } from "react";
 import Icon from "./Icon";
 import { authHeader, errorMessage } from "../api";
+import CategorySelect from "./CategorySelect";
 
-const EditTodo = ({ todo, getTodos, setEditingTodoId }) => {
+const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
   const [description, setDescription] = useState(todo.description);
   const [dueDate, setDueDate] = useState(todo.due_date ? todo.due_date.split("T")[0] : "");
   const [priority, setPriority] = useState(todo.priority || "Low");
@@ -88,16 +89,12 @@ const EditTodo = ({ todo, getTodos, setEditingTodoId }) => {
           <option value="Medium">Medium</option>
           <option value="High">High</option>
         </select>
-        <select
+        <CategorySelect
           className="p-2 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={category}
-          aria-label="Category"
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Shopping">Shopping</option>
-        </select>
+          onChange={setCategory}
+          todos={todos}
+        />
         <button
           className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105"
           onClick={updateDescription}
