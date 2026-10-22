@@ -4,7 +4,7 @@ import EditTodo from "./EditTodo";
 import Icon from "./Icon";
 import { authHeader } from "../api";
 
-const ListTodos = ({ todos, getTodos }) => {
+const ListTodos = ({ todos, allTodos, getTodos }) => {
   const [editingTodoId, setEditingTodoId] = useState(null);
 
   const deleteTodo = async (id) => {
@@ -98,7 +98,12 @@ const ListTodos = ({ todos, getTodos }) => {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {isEditing ? (
-                  <EditTodo todo={todo} getTodos={getTodos} setEditingTodoId={setEditingTodoId} />
+                  <EditTodo
+                    todo={todo}
+                    todos={allTodos}
+                    getTodos={getTodos}
+                    setEditingTodoId={setEditingTodoId}
+                  />
                 ) : (
                   <>
                     <div className="flex items-center gap-3 flex-1">

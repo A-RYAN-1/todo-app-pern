@@ -57,6 +57,17 @@ test("todo: validates priority, category and completed", () => {
   );
 });
 
+test("todo: a custom category is trimmed and a blank one is stored as none", () => {
+  assert.equal(validateTodo({ description: "x", category: "  Gym  " }).value.category, "Gym");
+  assert.equal(validateTodo({ description: "x", category: "   " }).value.category, null);
+  assert.equal(
+    validateTodo({ description: "x", category: "Side projects" }).value.category,
+    "Side projects"
+  );
+  assert.ok(validateTodo({ description: "x", category: " ".concat("c".repeat(51)) }).error);
+  assert.ok(validateTodo({ description: "x", category: 7 }).error);
+});
+
 test("todo: accepts a date or an ISO timestamp, rejects impossible dates", () => {
   assert.equal(
     validateTodo({ description: "x", due_date: "2026-11-01" }).value.due_date,

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 
@@ -67,4 +67,36 @@ test("an expired token (401) sends the user back to the login form", async () =>
   await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(localStorage.getItem("token")).toBeNull());
   expect(screen.getByRole("button", { name: "Login" })).toBeInTheDocument();
+});
+
+test("the category list shows the user's own categories", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([{ ...TODO, category: "Gym" }]));
+  await logIn();
+  await screen.findByText("write tests");
+  const filter = screen.getByLabelText("Filter by category");
+  expect(within(filter).getByRole("option", { name: "Gym" })).toBeInTheDocument();
+  const form = screen.getAllByLabelText("Category")[0];
+  expect(within(form).getByRole("option", { name: "Gym" })).toBeInTheDocument();
+});
+
+test("a new category typed in the add form is sent with the task", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockReturnValue(json([]));
+  await logIn();
+  await userEvent.selectOptions(await screen.findByLabelText("Category"), "New category...");
+  await userEvent.type(screen.getByLabelText("New category name"), "Gym");
+  await userEvent.type(screen.getByPlaceholderText("Add a new todo"), "run 5k");
+  await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() =>
+    expect(
+      globalThis.fetch.mock.calls.some(
+        ([url, init]) => url.endsWith("/todos") && init && init.method === "POST"
+      )
+    ).toBe(true)
+  );
+  const post = globalThis.fetch.mock.calls.find(
+    ([url, init]) => url.endsWith("/todos") && init && init.method === "POST"
+  );
+  expect(JSON.parse(post[1].body).category).toBe("Gym");
 });

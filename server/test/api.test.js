@@ -115,8 +115,8 @@ test("todo lifecycle: create, list, update, delete", async () => {
 });
 
 test("invalid todo input is rejected with a message, not a stack trace", async () => {
-  const token = await signup(`carol_${suffix}`);
   names.push(`carol_${suffix}`);
+  const token = await signup(`carol_${suffix}`);
   const res = await request(app)
     .post("/todos")
     .set("Authorization", token)
@@ -160,6 +160,30 @@ test("a user cannot read, change or delete another user's todo", async () => {
     .delete(`/todos/${aliceTodo.body.todo_id}`)
     .set("Authorization", bob.body.token)
     .expect(404);
+});
+
+test("a custom category is trimmed, saved, changed and exported", async () => {
+  names.push(`dave_${suffix}`);
+  const token = await signup(`dave_${suffix}`);
+  const created = await request(app)
+    .post("/todos")
+    .set("Authorization", token)
+    .send({ description: "run 5k", category: "  Gym  " })
+    .expect(201);
+  assert.equal(created.body.category, "Gym");
+
+  const updated = await request(app)
+    .put(`/todos/${created.body.todo_id}`)
+    .set("Authorization", token)
+    .send({ description: "run 5k", category: "Side projects" })
+    .expect(200);
+  assert.equal(updated.body.category, "Side projects");
+
+  const exported = await request(app).get("/export").set("Authorization", token).expect(200);
+  assert.deepEqual(
+    exported.body.map((t) => t.category),
+    ["Side projects"]
+  );
 });
 
 test("export then import round-trips and import is all-or-nothing", async () => {
