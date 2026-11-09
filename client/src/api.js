@@ -11,3 +11,9 @@ export async function errorMessage(response, fallback) {
 }
 
 export const authHeader = () => ({ Authorization: localStorage.getItem("token") || "" });
+
+// Today's date on the user's own clock as YYYY-MM-DD (toISOString would give the UTC day).
+export function localDate(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}

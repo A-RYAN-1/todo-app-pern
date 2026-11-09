@@ -10,6 +10,7 @@ process.env.DATABASE_URL =
 
 const { createApp } = require("../app");
 const pool = require("../connect_server_and_database");
+const { createQuota } = require("../nlparse/quota");
 
 const app = createApp({ authLimit: 1000 });
 const suffix = Date.now().toString(36);
@@ -224,4 +225,101 @@ test("login is rate limited", async () => {
 test("unknown routes return JSON 404", async () => {
   const res = await request(app).get("/nope").expect(404);
   assert.equal(res.body.error, "Not found");
+});
+
+// ---- POST /todos/parse ----
+const today = () => new Date().toISOString().slice(0, 10);
+
+test("parse: needs a login and a date near today", async () => {
+  await request(app).post("/todos/parse").send({ text: "x", today: today() }).expect(401);
+  const token = await signup(`erin_${suffix}`);
+  names.push(`erin_${suffix}`);
+  await request(app)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ text: "x" })
+    .expect(400);
+  await request(app)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ text: "x", today: "2020-01-01" })
+    .expect(400);
+  await request(app)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ today: today() })
+    .expect(400);
+  await request(app)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ text: "   ", today: today() })
+    .expect(400);
+});
+
+test("parse: without a model it uses the rules and saves nothing", async () => {
+  const rulesApp = createApp({ authLimit: 1000, provider: null });
+  const token = (
+    await request(rulesApp).post("/login").send({ username: names[0], password: PASSWORD })
+  ).body.token;
+  const before = (await request(rulesApp).get("/todos").set("Authorization", token)).body.length;
+  const res = await request(rulesApp)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ text: "call mum tomorrow high priority", today: today() })
+    .expect(200);
+  assert.equal(res.body.source, "rules");
+  assert.equal(res.body.priority, "High");
+  assert.equal(res.body.description, "Call mum");
+  assert.equal(res.body.limited, false);
+  const after = (await request(rulesApp).get("/todos").set("Authorization", token)).body.length;
+  assert.equal(after, before);
+});
+
+test("parse: model answer is used, then the daily cap sends callers to the rules", async () => {
+  let calls = 0;
+  const provider = {
+    complete: async () => {
+      calls++;
+      return '{"description":"From model","due_date":null,"priority":"Medium","category":"Work"}';
+    },
+  };
+  const capped = createApp({
+    authLimit: 1000,
+    provider,
+    quota: createQuota({ perUser: 1, total: 100 }),
+  });
+  const token = (
+    await request(capped).post("/login").send({ username: names[0], password: PASSWORD })
+  ).body.token;
+  const send = () =>
+    request(capped)
+      .post("/todos/parse")
+      .set("Authorization", token)
+      .send({ text: "anything", today: today() });
+  const first = await send().expect(200);
+  assert.equal(first.body.source, "model");
+  assert.equal(first.body.description, "From model");
+  const second = await send().expect(200);
+  assert.equal(second.body.source, "rules");
+  assert.equal(second.body.limited, true);
+  assert.equal(calls, 1);
+});
+
+test("parse: a failing model never breaks the helper", async () => {
+  const provider = {
+    complete: async () => {
+      throw new Error("boom");
+    },
+  };
+  const broken = createApp({ authLimit: 1000, provider });
+  const token = (
+    await request(broken).post("/login").send({ username: names[0], password: PASSWORD })
+  ).body.token;
+  const res = await request(broken)
+    .post("/todos/parse")
+    .set("Authorization", token)
+    .send({ text: "buy milk tomorrow", today: today() })
+    .expect(200);
+  assert.equal(res.body.source, "rules");
+  assert.ok(res.body.description);
 });

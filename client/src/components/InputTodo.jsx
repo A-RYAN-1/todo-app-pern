@@ -1,6 +1,6 @@
 import { API_URL } from "../config";
 import { Fragment, useState } from "react";
-import { authHeader, errorMessage } from "../api";
+import { authHeader, errorMessage, localDate } from "../api";
 import CategorySelect from "./CategorySelect";
 
 const InputTodo = ({ getTodos, todos }) => {
@@ -10,6 +10,42 @@ const InputTodo = ({ getTodos, todos }) => {
   const [category, setCategory] = useState("Personal");
   const [error, setError] = useState("");
   const [formKey, setFormKey] = useState(0);
+  const [sentence, setSentence] = useState("");
+  const [filling, setFilling] = useState(false);
+  const [fillNote, setFillNote] = useState("");
+
+  // Fills the form below from one typed sentence. Nothing is saved until Add is pressed.
+  const onFill = async (e) => {
+    e.preventDefault();
+    if (!sentence.trim()) return;
+    setFilling(true);
+    setFillNote("");
+    try {
+      const response = await fetch(`${API_URL}/todos/parse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ text: sentence, today: localDate() }),
+      });
+      if (!response.ok)
+        throw new Error(await errorMessage(response, "Could not read that sentence"));
+      const parsed = await response.json();
+      setDescription(parsed.description);
+      setDueDate(parsed.due_date || "");
+      setPriority(parsed.priority);
+      if (parsed.category) setCategory(parsed.category);
+      setSentence("");
+      setError("");
+      setFillNote(
+        parsed.source === "model"
+          ? "Filled by the AI helper. Check the fields, then press Add."
+          : "Filled by simple rules. Check the fields, then press Add."
+      );
+    } catch (err) {
+      setError(err.message || "An error occurred. Please try again.");
+    } finally {
+      setFilling(false);
+    }
+  };
 
   const onSubmitForm = async (e) => {
     e.preventDefault();
@@ -52,6 +88,29 @@ const InputTodo = ({ getTodos, todos }) => {
           className="text-red-400 text-center mb-4 text-sm font-medium bg-red-900/50 p-2 rounded"
         >
           {error}
+        </p>
+      )}
+      <form onSubmit={onFill} className="flex gap-2 mb-4">
+        <input
+          type="text"
+          className="flex-1 p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400"
+          value={sentence}
+          maxLength={300}
+          onChange={(e) => setSentence(e.target.value)}
+          placeholder="Or type it in one line: call mum friday 5pm high priority"
+          aria-label="Describe the todo in one sentence"
+        />
+        <button
+          type="submit"
+          disabled={filling || !sentence.trim()}
+          className="px-4 py-3 rounded-lg border border-gray-400 text-gray-200 hover:bg-gray-600 disabled:opacity-50 font-semibold"
+        >
+          {filling ? "Reading..." : "Fill form"}
+        </button>
+      </form>
+      {fillNote && (
+        <p role="status" className="text-gray-300 text-sm mb-4">
+          {fillNote}
         </p>
       )}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
