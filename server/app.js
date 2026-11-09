@@ -6,13 +6,28 @@ const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const pool = require("./connect_server_and_database");
-const { JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN } = require("./config");
+const config = require("./config");
+const { JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN } = config;
 const { validateCredentials, validateTodo, parseId } = require("./validation");
 const logger = require("./logger");
+const { parseText } = require("./nlparse");
+const { createGemini } = require("./nlparse/gemini");
+const { createQuota } = require("./nlparse/quota");
+const { isRealDate } = require("./validation");
 
 const MAX_IMPORT = 500;
 
-function createApp({ authLimit = 20 } = {}) {
+const DEFAULT_CATEGORIES = ["Work", "Personal", "Shopping"];
+
+// provider: an object with complete(input) -> raw JSON text, or null for rules only.
+// By default it is Gemini when GEMINI_API_KEY is set.
+function createApp({
+  authLimit = 20,
+  provider = config.GEMINI_API_KEY
+    ? createGemini({ apiKey: config.GEMINI_API_KEY, model: config.GEMINI_MODEL })
+    : null,
+  quota = createQuota({ perUser: config.NL_DAILY_USER_LIMIT, total: config.NL_DAILY_TOTAL_LIMIT }),
+} = {}) {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
@@ -110,6 +125,56 @@ function createApp({ authLimit = 20 } = {}) {
       next();
     });
   };
+
+  const parseRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    keyGenerator: (req) => `user-${req.user.id}`,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, try again in a minute" },
+  });
+
+  // Sentence to todo fields. The result only fills the form; nothing is saved.
+  app.post("/todos/parse", authenticate, parseRateLimit, async (req, res) => {
+    const { text, today } = req.body || {};
+    if (typeof text !== "string") return fail(res, 400, "Text is required");
+    // The client sends its local date; accept it only within a day of the server's.
+    const serverDay = Date.now();
+    const clientDay =
+      typeof today === "string" && isRealDate(today) ? Date.parse(`${today}T00:00:00Z`) : NaN;
+    if (Number.isNaN(clientDay) || Math.abs(clientDay - serverDay) > 2 * 86400000) {
+      return fail(res, 400, "today must be a date near the current one (YYYY-MM-DD)");
+    }
+    try {
+      const rows = await pool.query(
+        "SELECT DISTINCT category FROM todo WHERE user_id = $1 AND category IS NOT NULL",
+        [req.user.id]
+      );
+      const categories = [...DEFAULT_CATEGORIES];
+      for (const { category } of rows.rows) {
+        if (!categories.some((c) => c.toLowerCase() === category.toLowerCase()))
+          categories.push(category);
+      }
+      const useModel = provider && quota.take(req.user.id);
+      const result = await parseText({
+        text,
+        today,
+        categories,
+        provider: useModel ? provider : null,
+      });
+      if (result.error) return fail(res, 400, result.error);
+      if (result.fallbackReason)
+        logger.warn("model parse fell back", { id: req.id, reason: result.fallbackReason });
+      res.json({
+        ...result.fields,
+        source: result.source,
+        limited: Boolean(provider) && !useModel,
+      });
+    } catch (err) {
+      return serverError(req, res, err, "parse failed");
+    }
+  });
 
   app.post("/todos", authenticate, async (req, res) => {
     const { error, value } = validateTodo(req.body);

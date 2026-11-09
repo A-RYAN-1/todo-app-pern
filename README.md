@@ -103,6 +103,7 @@ Things to try in the first two minutes:
 - **Private lists**: every query is scoped to the logged-in user; another user's todo id returns 404, not their data.
 - **Tasks**: description, due date, priority, category and a done flag; create, edit, tick, delete.
 - **Your own categories**: Work, Personal and Shopping are always there; choose "New category..." in the add or edit form to type your own (up to 50 characters). Every category you have used appears in the forms and the filter, with no setup.
+- **Fill from one sentence**: type "call mum friday 5pm high priority" and press Fill form; the description, due date, priority and category are filled in for you to check. Nothing is saved until you press Add. A Gemini model reads the sentence when a key is configured, with a plain rule-based parser as the fallback, and the page says which one filled the form. Measured in [`server/eval`](server/eval/README.md).
 - **Search and filters**: by text, priority and category.
 - **Overdue and due-soon markers**: overdue tasks get a red outline, tasks due within a day get a badge, and the browser can show a notification if you have already allowed notifications for the site.
 - **Export and import**: your todos as JSON; import is validated item by item and applied in one transaction.
@@ -205,6 +206,7 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 | `POST /register` | Create an account: username 3-50, password 8-72 characters | 201 `{user_id, username}` | 400, 409 taken, 429 |
 | `POST /login` | Exchange credentials for a token | 200 `{token}` | 400, 401, 429 |
 | `GET /todos` | Your todos, by due date | 200 list | 401 |
+| `POST /todos/parse` | `{ text, today }` (`today` is the caller's date, `YYYY-MM-DD`, within two days of the server's): returns `description`, `due_date`, `priority`, `category`, `source` (`model` or `rules`) and `limited`. Saves nothing | 200 | 400, 401, 429 |
 | `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50, trimmed; any text, so it can be a custom one), `completed` | 201 todo | 400, 401 |
 | `PUT /todos/:id` | Replace the editable fields of one of your todos | 200 todo | 400, 401, 404 |
 | `DELETE /todos/:id` | Delete one of your todos | 200 `{deleted}` | 400, 401, 404 |
@@ -290,6 +292,9 @@ API (`server/.env`, template `server/.env.example`):
 | `JWT_EXPIRES_IN` | Login lifetime | `7d` |
 | `PORT` | API port | `5000` |
 | `CORS_ORIGIN` | The client origin allowed to call the API | `http://localhost:3000`; the Vercel URL in production |
+| `GEMINI_API_KEY` | Optional. Lets a Gemini model read the Fill form sentence; without it the rule-based parser is used | empty locally; a free-tier key in production |
+| `GEMINI_MODEL` | Model for the helper | `gemini-3.5-flash-lite` |
+| `NL_DAILY_USER_LIMIT` / `NL_DAILY_TOTAL_LIMIT` | Model calls per user and in total per UTC day; past them the rules answer | `30` / `300` |
 
 Client (`client/.env`, template `client/.env.example`):
 
@@ -333,6 +338,7 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - Rate limiting covers login and register only, and counts per IP address.
 - Categories cannot be renamed or deleted in one step; a category disappears from the list when no task uses it, and renaming means editing each task.
 - Lighthouse was run on the login page only; the logged-in screens are not audited.
+- Fill from one sentence: on a fixed set of 85 hand-labelled sentences (today fixed to Monday 2026-11-09), the model with prompt `nl-task-v2` got description, due date and priority all right in 94.1% of them, and the rule parser 95.3%; the rule parser was written with those sentences in view, so that tie flatters it. On 25 differently worded sentences written afterwards and run once without tuning, the model got 84% and the rules 68% (a small sample). The prompt was tuned on 64 of the 85; the other 21 were held back (model 100%, but the prompt moved little between versions). Category is reported apart (model 63.5%, rules 80%) because the labels are partly a matter of taste. "next friday" on a Monday means the Friday of the same week by this project's rule. Measured 2026-11-09 on `gemini-3.5-flash-lite`; the quota is in memory, so it resets when the API restarts.
 
 **Planned**
 
@@ -340,6 +346,8 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - [ ] Per-user rate limit on todo routes
 - [x] Custom categories (2026-10-22)
 - [ ] Lighthouse for the logged-in screens
+- [x] Fill a todo from one sentence (2026-11-09)
+- [ ] Due-date reminders and recurring tasks
 
 ## Credits
 

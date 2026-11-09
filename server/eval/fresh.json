@@ -1,0 +1,183 @@
+{
+  "note": "Written after the dev/holdout set and after prompt v2, before either parser was run on it. Not used for tuning. Same date conventions as cases.json.",
+  "today": "2026-11-09",
+  "weekday": "Monday",
+  "categories": ["Work", "Personal", "Shopping"],
+  "cases": [
+    {
+      "input": "ring the vet thurs morning, not urgent but dont forget",
+      "description": "Ring the vet",
+      "due_date": "2026-11-12",
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "renew domain on 12 december",
+      "description": "Renew domain",
+      "due_date": "2026-12-12",
+      "priority": "Low",
+      "category": null
+    },
+    {
+      "input": "dinner with Priya the day after tomorrow",
+      "description": "Dinner with Priya",
+      "due_date": "2026-11-11",
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "tomorrow: submit timesheet",
+      "description": "Submit timesheet",
+      "due_date": "2026-11-10",
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "high priority - rotate the api keys on the 1st of december",
+      "description": "Rotate the API keys",
+      "due_date": "2026-12-01",
+      "priority": "High",
+      "category": "Work"
+    },
+    {
+      "input": "finish reading the paper over the weekend",
+      "description": "Finish reading the paper",
+      "due_date": "2026-11-14",
+      "priority": "Low",
+      "category": null
+    },
+    {
+      "input": "mail the tax documents to the accountant in 10 days",
+      "description": "Mail the tax documents to the accountant",
+      "due_date": "2026-11-19",
+      "priority": "Low",
+      "category": null
+    },
+    {
+      "input": "need to buy milk and eggs",
+      "description": "Buy milk and eggs",
+      "due_date": null,
+      "priority": "Low",
+      "category": "Shopping"
+    },
+    {
+      "input": "low priority: sort old photos",
+      "description": "Sort old photos",
+      "due_date": null,
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "important - finalise the report, due friday",
+      "description": "Finalise the report",
+      "due_date": "2026-11-13",
+      "priority": "High",
+      "category": "Work"
+    },
+    {
+      "input": "walk the dog at 7am tomorrow",
+      "description": "Walk the dog",
+      "due_date": "2026-11-10",
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "call dr sharma on 3 dec",
+      "description": "Call Dr Sharma",
+      "due_date": "2026-12-03",
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "set up CI for the new repo wednesday",
+      "description": "Set up CI for the new repo",
+      "due_date": "2026-11-11",
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "medium priority: plan team offsite, by next tuesday",
+      "description": "Plan team offsite",
+      "due_date": "2026-11-10",
+      "priority": "Medium",
+      "category": "Work"
+    },
+    {
+      "input": "in two weeks renew the SSL certificate",
+      "description": "Renew the SSL certificate",
+      "due_date": "2026-11-23",
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "feed the cat",
+      "description": "Feed the cat",
+      "due_date": null,
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "monday: write retro notes",
+      "description": "Write retro notes",
+      "due_date": "2026-11-16",
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "pick up the cake on nov 27 asap",
+      "description": "Pick up the cake",
+      "due_date": "2026-11-27",
+      "priority": "High",
+      "category": null
+    },
+    {
+      "input": "three days from now: send the quarterly numbers",
+      "description": "Send the quarterly numbers",
+      "due_date": "2026-11-12",
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "dont forget to back up the database",
+      "description": "Back up the database",
+      "due_date": null,
+      "priority": "Low",
+      "category": "Work"
+    },
+    {
+      "input": "pay the plumber friday normal priority",
+      "description": "Pay the plumber",
+      "due_date": "2026-11-13",
+      "priority": "Medium",
+      "category": "Personal"
+    },
+    {
+      "input": "email the signed form on the 16th",
+      "description": "Email the signed form",
+      "due_date": "2026-11-16",
+      "priority": "Low",
+      "category": null
+    },
+    {
+      "input": "stretch",
+      "description": "Stretch",
+      "due_date": null,
+      "priority": "Low",
+      "category": "Personal"
+    },
+    {
+      "input": "urgent!! fix prod outage now",
+      "description": "Fix prod outage",
+      "due_date": null,
+      "priority": "High",
+      "category": "Work"
+    },
+    {
+      "input": "buy a gift for the housewarming on dec 5 low priority",
+      "description": "Buy a gift for the housewarming",
+      "due_date": "2026-12-05",
+      "priority": "Low",
+      "category": "Shopping"
+    }
+  ]
+}

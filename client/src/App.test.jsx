@@ -100,3 +100,70 @@ test("a new category typed in the add form is sent with the task", async () => {
   );
   expect(JSON.parse(post[1].body).category).toBe("Gym");
 });
+
+test("Fill form turns one sentence into the form fields without saving anything", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockImplementation((url) =>
+    url.endsWith("/todos/parse")
+      ? json({
+          description: "Call mum",
+          due_date: "2026-11-13",
+          priority: "High",
+          category: "Personal",
+          source: "model",
+          limited: false,
+        })
+      : json([TODO])
+  );
+  await logIn();
+  await userEvent.type(
+    await screen.findByLabelText("Describe the todo in one sentence"),
+    "call mum friday 5pm high priority"
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Fill form" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Filled by the AI helper");
+  expect(screen.getByLabelText("New todo description")).toHaveValue("Call mum");
+  expect(screen.getByLabelText("Due date")).toHaveValue("2026-11-13");
+  expect(screen.getByLabelText("Priority")).toHaveValue("High");
+  const parseCall = globalThis.fetch.mock.calls.find(([url]) => url.endsWith("/todos/parse"));
+  expect(JSON.parse(parseCall[1].body).today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  const saved = globalThis.fetch.mock.calls.some(
+    ([url, init]) => url.endsWith("/todos") && init && init.method === "POST"
+  );
+  expect(saved).toBe(false);
+});
+
+test("Fill form says when the rules, not the model, filled the fields", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockImplementation((url) =>
+    url.endsWith("/todos/parse")
+      ? json({
+          description: "Buy milk",
+          due_date: null,
+          priority: "Low",
+          category: null,
+          source: "rules",
+          limited: true,
+        })
+      : json([TODO])
+  );
+  await logIn();
+  await userEvent.type(
+    await screen.findByLabelText("Describe the todo in one sentence"),
+    "buy milk"
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Fill form" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Filled by simple rules");
+});
+
+test("Fill form shows the server's error", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockImplementation((url) =>
+      url.endsWith("/todos/parse")
+        ? json({ error: "Too many requests, try again in a minute" }, 429)
+        : json([TODO])
+    );
+  await logIn();
+  await userEvent.type(await screen.findByLabelText("Describe the todo in one sentence"), "x y z");
+  await userEvent.click(screen.getByRole("button", { name: "Fill form" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Too many requests");
+});

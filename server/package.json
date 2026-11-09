@@ -9,7 +9,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "migrate": "node migrate.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "eval:nl": "node eval/run.js"
   },
   "author": "",
   "license": "ISC",
