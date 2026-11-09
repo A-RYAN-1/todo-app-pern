@@ -41,7 +41,7 @@
   </a>
 </p>
 
-<p align="center"><sub>Last updated: 2026-10-17 &middot; Live on free tiers (Vercel, Render, Neon), production-grade checklist done</sub></p>
+<p align="center"><sub>Last updated: 2026-11-09 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback) live</sub></p>
 
 ---
 
@@ -93,9 +93,12 @@ Things to try in the first two minutes:
     <td width="50%"><img src="docs/images/edit.png" alt="A task open for editing inline, with description, date, priority and category fields"><p align="center"><sub>Inline editing (<a href="#how-it-works">how it works</a>)</sub></p></td>
     <td width="50%"><img src="docs/images/list.png" alt="The full list with one task ticked off"><p align="center"><sub>A completed task struck through (<a href="#engineering-quality">tests</a>)</sub></p></td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/fill-form.png" alt="The add form after typing one sentence and pressing Fill form: description, due date, priority and category are filled in, with a note that the AI helper filled them and that nothing is saved until Add"><p align="center"><sub>Fill form: one sentence fills the fields, nothing is saved until Add (<a href="#features">features</a>, <a href="server/eval/README.md">evaluation</a>)</sub></p></td>
+  </tr>
 </table>
 
-<sub>Screenshots taken from the live site on 2026-10-17 with the demo account.</sub>
+<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17.</sub>
 
 ## Features
 
