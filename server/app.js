@@ -11,6 +11,7 @@ const { JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN } = config;
 const { validateCredentials, validateTodo, parseId } = require("./validation");
 const logger = require("./logger");
 const { parseText } = require("./nlparse");
+const { nextDueDate } = require("./recurrence");
 const { createGemini } = require("./nlparse/gemini");
 const { createQuota } = require("./nlparse/quota");
 const { isRealDate } = require("./validation");
@@ -115,6 +116,12 @@ function createApp({
     }
   });
 
+  // The client sends its local date; accept it only within two days of the server's.
+  const isNearToday = (today) => {
+    if (typeof today !== "string" || !isRealDate(today)) return false;
+    return Math.abs(Date.parse(`${today}T00:00:00Z`) - Date.now()) <= 2 * 86400000;
+  };
+
   const authenticate = (req, res, next) => {
     const header = req.headers["authorization"];
     if (!header) return fail(res, 401, "Access denied");
@@ -139,11 +146,7 @@ function createApp({
   app.post("/todos/parse", authenticate, parseRateLimit, async (req, res) => {
     const { text, today } = req.body || {};
     if (typeof text !== "string") return fail(res, 400, "Text is required");
-    // The client sends its local date; accept it only within a day of the server's.
-    const serverDay = Date.now();
-    const clientDay =
-      typeof today === "string" && isRealDate(today) ? Date.parse(`${today}T00:00:00Z`) : NaN;
-    if (Number.isNaN(clientDay) || Math.abs(clientDay - serverDay) > 2 * 86400000) {
+    if (!isNearToday(today)) {
       return fail(res, 400, "today must be a date near the current one (YYYY-MM-DD)");
     }
     try {
@@ -176,12 +179,38 @@ function createApp({
     }
   });
 
+  // Open todos that are overdue, due today or due tomorrow, by the caller's own date.
+  app.get("/todos/reminders", authenticate, async (req, res) => {
+    const { today } = req.query;
+    if (!isNearToday(today)) {
+      return fail(res, 400, "today must be a date near the current one (YYYY-MM-DD)");
+    }
+    try {
+      const result = await pool.query(
+        `SELECT todo_id, description, priority, category, recurrence,
+                to_char(due_date, 'YYYY-MM-DD') AS due_date,
+                CASE WHEN due_date < $2::date THEN 'overdue'
+                     WHEN due_date = $2::date THEN 'today'
+                     ELSE 'tomorrow' END AS bucket
+           FROM todo
+          WHERE user_id = $1 AND completed = FALSE AND due_date <= $2::date + 1
+          ORDER BY due_date ASC, todo_id ASC`,
+        [req.user.id, today]
+      );
+      const grouped = { overdue: [], today: [], tomorrow: [] };
+      for (const { bucket, ...todo } of result.rows) grouped[bucket].push(todo);
+      res.json(grouped);
+    } catch (err) {
+      return serverError(req, res, err, "reminders failed");
+    }
+  });
+
   app.post("/todos", authenticate, async (req, res) => {
     const { error, value } = validateTodo(req.body);
     if (error) return fail(res, 400, error);
     try {
       const result = await pool.query(
-        "INSERT INTO todo (user_id, description, due_date, priority, category, completed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
         [
           req.user.id,
           value.description,
@@ -189,6 +218,7 @@ function createApp({
           value.priority,
           value.category,
           value.completed,
+          value.recurrence,
         ]
       );
       res.status(201).json(result.rows[0]);
@@ -214,23 +244,62 @@ function createApp({
     if (!id) return fail(res, 400, "Invalid todo id");
     const { error, value } = validateTodo(req.body);
     if (error) return fail(res, 400, error);
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
-        "UPDATE todo SET description = $1, due_date = $2, priority = $3, category = $4, completed = $5 WHERE todo_id = $6 AND user_id = $7 RETURNING *",
+      await client.query("BEGIN");
+      const before = await client.query(
+        "SELECT completed FROM todo WHERE todo_id = $1 AND user_id = $2 FOR UPDATE",
+        [id, req.user.id]
+      );
+      if (before.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return fail(res, 404, "Todo not found");
+      }
+      const result = await client.query(
+        "UPDATE todo SET description = $1, due_date = $2, priority = $3, category = $4, completed = $5, recurrence = $6 WHERE todo_id = $7 AND user_id = $8 RETURNING *",
         [
           value.description,
           value.due_date,
           value.priority,
           value.category,
           value.completed,
+          value.recurrence,
           id,
           req.user.id,
         ]
       );
-      if (result.rows.length === 0) return fail(res, 404, "Todo not found");
-      res.json(result.rows[0]);
+      const todo = result.rows[0];
+      let next = null;
+      // Ticking a repeating todo done creates the next one, unless an identical
+      // open one already exists (untick and tick again must not pile them up).
+      if (value.recurrence && value.completed && !before.rows[0].completed) {
+        const nextDue = nextDueDate(value.due_date, value.recurrence);
+        const created = await client.query(
+          `INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence)
+           SELECT $1::int, $2::varchar, $3::date, $4::varchar, $5::varchar, FALSE, $6::varchar
+            WHERE NOT EXISTS (
+              SELECT 1 FROM todo
+               WHERE user_id = $1 AND description = $2 AND due_date = $3
+                 AND recurrence = $6 AND completed = FALSE)
+           RETURNING *`,
+          [
+            req.user.id,
+            value.description,
+            nextDue,
+            value.priority,
+            value.category,
+            value.recurrence,
+          ]
+        );
+        next = created.rows[0] || null;
+      }
+      await client.query("COMMIT");
+      res.json(next ? { ...todo, next } : todo);
     } catch (err) {
+      await client.query("ROLLBACK");
       return serverError(req, res, err, "update todo failed");
+    } finally {
+      client.release();
     }
   });
 
@@ -252,7 +321,7 @@ function createApp({
   app.get("/export", authenticate, async (req, res) => {
     try {
       const result = await pool.query(
-        "SELECT description, due_date, priority, category, completed FROM todo WHERE user_id = $1 ORDER BY todo_id",
+        "SELECT description, due_date, priority, category, completed, recurrence FROM todo WHERE user_id = $1 ORDER BY todo_id",
         [req.user.id]
       );
       res.json(result.rows);
@@ -277,8 +346,16 @@ function createApp({
       await client.query("BEGIN");
       for (const v of values) {
         await client.query(
-          "INSERT INTO todo (user_id, description, due_date, priority, category, completed) VALUES ($1, $2, $3, $4, $5, $6)",
-          [req.user.id, v.description, v.due_date, v.priority, v.category, v.completed]
+          "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+          [
+            req.user.id,
+            v.description,
+            v.due_date,
+            v.priority,
+            v.category,
+            v.completed,
+            v.recurrence,
+          ]
         );
       }
       await client.query("COMMIT");

@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import "./App.css";
 import InputTodo from "./components/InputTodo";
 import ListTodos from "./components/ListTodos";
+import Reminders from "./components/Reminders";
 import Login from "./components/Login";
 import { authHeader, errorMessage } from "./api";
 import { categoryOptions } from "./categories";
@@ -118,6 +119,7 @@ const App = () => {
             {notice}
           </p>
         )}
+        <Reminders todos={todos} />
         <div className="border-t border-gray-700 my-6"></div>
         <div className="p-6 bg-gray-800 rounded-lg shadow-lg border border-gray-700 mb-8">
           <h2 className="text-3xl font-bold text-white mb-6">Add Todo</h2>

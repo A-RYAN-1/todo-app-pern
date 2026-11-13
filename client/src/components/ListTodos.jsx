@@ -1,8 +1,9 @@
 import { API_URL } from "../config";
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState } from "react";
 import EditTodo from "./EditTodo";
 import Icon from "./Icon";
 import { authHeader } from "../api";
+import { repeatLabel } from "../repeat";
 
 const ListTodos = ({ todos, allTodos, getTodos }) => {
   const [editingTodoId, setEditingTodoId] = useState(null);
@@ -61,21 +62,6 @@ const ListTodos = ({ todos, allTodos, getTodos }) => {
       isDueSoon: diff > 0 && diff <= 1,
     };
   };
-
-  useEffect(() => {
-    // Only notify if the user already granted permission; never prompt on load.
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    todos.forEach((todo) => {
-      const { isOverdue, isDueSoon } = getDueStatus(todo.due_date, todo.completed);
-      if ((isOverdue || isDueSoon) && !todo.completed) {
-        new Notification(`Todo Reminder: ${todo.description || "Untitled"}`, {
-          body: `Due: ${
-            todo.due_date ? todo.due_date.split("T")[0] : "No Due Date"
-          } | Priority: ${todo.priority || "N/A"}`,
-        });
-      }
-    });
-  }, [todos]);
 
   return (
     <Fragment>
@@ -136,6 +122,11 @@ const ListTodos = ({ todos, allTodos, getTodos }) => {
                       {todo.category && (
                         <span className="text-xs px-2 py-1 rounded-full bg-blue-500 text-white font-medium">
                           {todo.category}
+                        </span>
+                      )}
+                      {repeatLabel(todo.recurrence) && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-gray-500 text-white font-medium">
+                          {repeatLabel(todo.recurrence)}
                         </span>
                       )}
                       {isDueSoon && !isOverdue && (

@@ -3,6 +3,7 @@ import { Fragment, useState } from "react";
 import Icon from "./Icon";
 import { authHeader, errorMessage } from "../api";
 import CategorySelect from "./CategorySelect";
+import { REPEAT_OPTIONS } from "../repeat";
 
 const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
   const [description, setDescription] = useState(todo.description);
@@ -10,6 +11,7 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
   const [priority, setPriority] = useState(todo.priority || "Low");
   const [category, setCategory] = useState(todo.category || "Personal");
   const [completed, setCompleted] = useState(todo.completed || false);
+  const [recurrence, setRecurrence] = useState(todo.recurrence || "none");
   const [error, setError] = useState("");
 
   const updateDescription = async (e) => {
@@ -29,6 +31,7 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
         priority,
         category,
         completed,
+        recurrence: dueDate ? recurrence : "none",
       };
       const response = await fetch(`${API_URL}/todos/${todo.todo_id}`, {
         method: "PUT",
@@ -53,6 +56,7 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
     setPriority(todo.priority || "Low");
     setCategory(todo.category || "Personal");
     setCompleted(todo.completed || false);
+    setRecurrence(todo.recurrence || "none");
     setError("");
     setEditingTodoId(null);
   };
@@ -88,6 +92,19 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>
           <option value="High">High</option>
+        </select>
+        <select
+          className="p-2 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 disabled:opacity-50"
+          value={dueDate ? recurrence : "none"}
+          aria-label="Repeat"
+          disabled={!dueDate}
+          onChange={(e) => setRecurrence(e.target.value)}
+        >
+          {REPEAT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
         <CategorySelect
           className="p-2 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"

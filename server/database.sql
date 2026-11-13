@@ -13,3 +13,7 @@ CREATE TABLE IF NOT EXISTS todo (
     category VARCHAR(50),
     completed BOOLEAN DEFAULT FALSE
 );
+
+-- Added with recurring todos. Safe to run again.
+ALTER TABLE todo ADD COLUMN IF NOT EXISTS recurrence VARCHAR(10)
+    CHECK (recurrence IN ('daily', 'weekly', 'monthly'));

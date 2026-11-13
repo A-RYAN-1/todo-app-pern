@@ -108,7 +108,8 @@ Things to try in the first two minutes:
 - **Your own categories**: Work, Personal and Shopping are always there; choose "New category..." in the add or edit form to type your own (up to 50 characters). Every category you have used appears in the forms and the filter, with no setup.
 - **Fill from one sentence**: type "call mum friday 5pm high priority" and press Fill form; the description, due date, priority and category are filled in for you to check. Nothing is saved until you press Add. A Gemini model reads the sentence when a key is configured, with a plain rule-based parser as the fallback, and the page says which one filled the form. Measured in [`server/eval`](server/eval/README.md).
 - **Search and filters**: by text, priority and category.
-- **Overdue and due-soon markers**: overdue tasks get a red outline, tasks due within a day get a badge, and the browser can show a notification if you have already allowed notifications for the site.
+- **Repeating tasks**: give a task a due date and choose daily, weekly or monthly. Ticking it done creates the next one, due one step after the date it was due (not the day you ticked it), so a weekly task ticked late does not drift. Untick and tick again and no second copy appears. A monthly task keeps its day of the month and clamps to a shorter month (31 Jan becomes 28 Feb).
+- **Reminders**: a panel at the top lists what is overdue, due today and due tomorrow, worked out by the server from your own date. You can turn on browser notifications (asked only when you press the button); each task is notified once a day, while the site is open in a tab. Overdue tasks also get a red outline and tasks due within a day a badge.
 - **Export and import**: your todos as JSON; import is validated item by item and applied in one transaction.
 - **Operations**: `/health` checks the database, requests carry an id, logs are JSON lines.
 
@@ -210,8 +211,9 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 | `POST /login` | Exchange credentials for a token | 200 `{token}` | 400, 401, 429 |
 | `GET /todos` | Your todos, by due date | 200 list | 401 |
 | `POST /todos/parse` | `{ text, today }` (`today` is the caller's date, `YYYY-MM-DD`, within two days of the server's): returns `description`, `due_date`, `priority`, `category`, `source` (`model` or `rules`) and `limited`. Saves nothing | 200 | 400, 401, 429 |
-| `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50, trimmed; any text, so it can be a custom one), `completed` | 201 todo | 400, 401 |
-| `PUT /todos/:id` | Replace the editable fields of one of your todos | 200 todo | 400, 401, 404 |
+| `GET /todos/reminders?today=` | Your open todos that are overdue, due today or due tomorrow by the caller's date (`today`, `YYYY-MM-DD`, within two days of the server's): `{ overdue, today, tomorrow }` | 200 | 400, 401 |
+| `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50, trimmed; any text, so it can be a custom one), `completed`, `recurrence` (`daily`, `weekly`, `monthly`, `none` or absent; needs a due date) | 201 todo | 400, 401 |
+| `PUT /todos/:id` | Replace the editable fields of one of your todos. Ticking a repeating todo done also creates the next one and returns it as `next` | 200 todo | 400, 401, 404 |
 | `DELETE /todos/:id` | Delete one of your todos | 200 `{deleted}` | 400, 401, 404 |
 | `GET /export` | Your todos without ids | 200 list | 401 |
 | `POST /import` | `{ "todos": [...] }`, 1 to 500 items, all or nothing | 201 `{imported}` | 400, 401 |
@@ -339,6 +341,7 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - Tokens are kept in `localStorage`, so a script injected into the page could read them; there is no refresh token or "log out everywhere".
 - No password reset and no email: a forgotten password cannot be recovered.
 - Rate limiting covers login and register only, and counts per IP address.
+- Reminders are in the page: a browser notification needs the site open in a tab, and there is no email or phone push. A repeating task is created when you tick it, so a task nobody ticks does not repeat. A monthly task clamps to a shorter month and stays on the clamped day afterwards (31 Jan, 28 Feb, 28 Mar).
 - Categories cannot be renamed or deleted in one step; a category disappears from the list when no task uses it, and renaming means editing each task.
 - Lighthouse was run on the login page only; the logged-in screens are not audited.
 - Fill from one sentence: on a fixed set of 85 hand-labelled sentences (today fixed to Monday 2026-11-09), the model with prompt `nl-task-v2` got description, due date and priority all right in 94.1% of them, and the rule parser 95.3%; the rule parser was written with those sentences in view, so that tie flatters it. On 25 differently worded sentences written afterwards and run once without tuning, the model got 84% and the rules 68% (a small sample). The prompt was tuned on 64 of the 85; the other 21 were held back (model 100%, but the prompt moved little between versions). Category is reported apart (model 63.5%, rules 80%) because the labels are partly a matter of taste. "next friday" on a Monday means the Friday of the same week by this project's rule. Measured 2026-11-09 on `gemini-3.5-flash-lite`; the quota is in memory, so it resets when the API restarts.
@@ -350,7 +353,7 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - [x] Custom categories (2026-10-22)
 - [ ] Lighthouse for the logged-in screens
 - [x] Fill a todo from one sentence (2026-11-09)
-- [ ] Due-date reminders and recurring tasks
+- [x] Due-date reminders and recurring tasks (2026-11-13)
 
 ## Credits
 
