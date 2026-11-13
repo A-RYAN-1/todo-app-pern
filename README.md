@@ -41,7 +41,7 @@
   </a>
 </p>
 
-<p align="center"><sub>Last updated: 2026-11-09 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback) live</sub></p>
+<p align="center"><sub>Last updated: 2026-11-13 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback), repeating tasks and reminders live</sub></p>
 
 ---
 
@@ -90,8 +90,11 @@ Things to try in the first two minutes:
     <td width="50%"><img src="docs/images/filtered.png" alt="The list filtered to high priority tasks matching the search text"><p align="center"><sub>Search and priority filter (<a href="#features">features</a>)</sub></p></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/edit.png" alt="A task open for editing inline, with description, date, priority and category fields"><p align="center"><sub>Inline editing (<a href="#how-it-works">how it works</a>)</sub></p></td>
+    <td width="50%"><img src="docs/images/edit.png" alt="A task open for editing inline, with description, date, priority, repeat and category fields"><p align="center"><sub>Inline editing, with the Repeat choice (<a href="#how-it-works">how it works</a>)</sub></p></td>
     <td width="50%"><img src="docs/images/list.png" alt="The full list with one task ticked off"><p align="center"><sub>A completed task struck through (<a href="#engineering-quality">tests</a>)</sub></p></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/repeat-reminders.png" alt="The Reminders panel listing overdue tasks above the add form, where a due date and a Weekly repeat are chosen"><p align="center"><sub>Reminders on top; the add form with a due date and a weekly repeat chosen (<a href="#features">features</a>)</sub></p></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/images/fill-form.png" alt="The add form after typing one sentence and pressing Fill form: description, due date, priority and category are filled in, with a note that the AI helper filled them and that nothing is saved until Add"><p align="center"><sub>Fill form: one sentence fills the fields, nothing is saved until Add (<a href="#features">features</a>, <a href="server/eval/README.md">evaluation</a>)</sub></p></td>
@@ -222,7 +225,7 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 
 | Area | What is in place |
 |---|---|
-| Tests | 23 server tests (10 unit tests for validation, 13 API tests against Postgres: auth, validation, per-user isolation, import rollback, rate limit, health) and 11 client tests (login errors, token storage, ticking a task, expired token, the category list and a new category). All passing on 2026-10-22. |
+| Tests | 48 server tests (validation, the rule parser, model-answer checks, quota, the Gemini client, evaluation scoring, date arithmetic for repeating tasks, and API tests against Postgres: auth, validation, per-user isolation, import rollback, repeat-once on ticking, reminder buckets, rate limit, health) and 22 client tests (login errors, token storage, ticking a task, expired token, categories, Fill form, the Reminders panel, the repeat choice and badge). All passing on 2026-11-13. |
 | CI | GitHub Actions on every push and pull request: ESLint, Prettier, migrations, tests and `npm audit` for the API; ESLint, Prettier, tests, build and `npm audit` for the client. |
 | Monitoring | An uptime workflow requests `/health` and the client every 30 minutes; a failure emails the repository owner. |
 | Security | Passwords hashed with bcrypt, tokens expire, helmet headers, CORS limited to the client origin, login and register rate limited, every query parameterised and scoped to the user, secrets only from the environment. `npm audit` for production dependencies: 0 vulnerabilities on 2026-10-17 (server and client). |
