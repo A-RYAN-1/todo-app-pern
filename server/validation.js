@@ -1,3 +1,5 @@
+const { RULES } = require("./recurrence");
+
 const PRIORITIES = ["Low", "Medium", "High"];
 
 function validateCredentials(body, { strictPassword = true } = {}) {
@@ -50,6 +52,14 @@ function validateTodo(body) {
   if (b.completed !== undefined && typeof b.completed !== "boolean") {
     return { error: "Completed must be true or false" };
   }
+  // "none" and "" both mean no repeat; the client sends the select's value as is.
+  const recurrence = isBlank(b.recurrence) || b.recurrence === "none" ? null : b.recurrence;
+  if (recurrence !== null && !RULES.includes(recurrence)) {
+    return { error: "Repeat must be daily, weekly or monthly" };
+  }
+  if (recurrence !== null && dueDate === null) {
+    return { error: "A repeating todo needs a due date" };
+  }
   return {
     value: {
       description: b.description.trim(),
@@ -57,6 +67,7 @@ function validateTodo(body) {
       priority,
       category,
       completed: b.completed === true,
+      recurrence,
     },
   };
 }

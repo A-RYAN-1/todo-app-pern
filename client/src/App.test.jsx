@@ -167,3 +167,70 @@ test("Fill form shows the server's error", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Fill form" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Too many requests");
 });
+
+const REMINDERS = {
+  overdue: [{ todo_id: 7, description: "pay rent", due_date: "2026-11-10", priority: "High" }],
+  today: [{ todo_id: 8, description: "call mum", due_date: "2026-11-13", priority: "Low" }],
+  tomorrow: [],
+};
+
+test("the reminders panel lists overdue and due-today todos from the server", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockImplementation((url) =>
+      url.includes("/todos/reminders") ? json(REMINDERS) : json([TODO])
+    );
+  await logIn();
+  const panel = await screen.findByRole("region", { name: "Reminders" });
+  expect(panel).toHaveTextContent("Overdue (1)");
+  expect(panel).toHaveTextContent("pay rent");
+  expect(panel).toHaveTextContent("Due today (1)");
+  expect(panel).toHaveTextContent("call mum");
+  expect(panel).not.toHaveTextContent("Due tomorrow");
+  const call = globalThis.fetch.mock.calls.find(([url]) => url.includes("/todos/reminders"));
+  expect(call[0]).toMatch(/today=\d{4}-\d{2}-\d{2}$/);
+});
+
+test("no reminders panel when nothing is due and notifications cannot be asked for", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockImplementation((url) =>
+      url.includes("/todos/reminders")
+        ? json({ overdue: [], today: [], tomorrow: [] })
+        : json([TODO])
+    );
+  await logIn();
+  await screen.findByText("write tests");
+  expect(screen.queryByRole("region", { name: "Reminders" })).not.toBeInTheDocument();
+});
+
+test("a repeating todo shows its rule", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([{ ...TODO, recurrence: "weekly" }]));
+  await logIn();
+  expect(await screen.findByText("Repeats weekly")).toBeInTheDocument();
+});
+
+test("the repeat choice is sent with the new todo and needs a due date", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockReturnValue(json([]));
+  await logIn();
+  const repeat = await screen.findByLabelText("Repeat");
+  expect(repeat).toBeDisabled();
+  await userEvent.type(screen.getByPlaceholderText("Add a new todo"), "water plants");
+  await userEvent.type(screen.getByLabelText("Due date"), "2026-11-20");
+  expect(repeat).toBeEnabled();
+  await userEvent.selectOptions(repeat, "weekly");
+  await userEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() =>
+    expect(
+      globalThis.fetch.mock.calls.some(
+        ([url, init]) => url.endsWith("/todos") && init && init.method === "POST"
+      )
+    ).toBe(true)
+  );
+  const post = globalThis.fetch.mock.calls.find(
+    ([url, init]) => url.endsWith("/todos") && init && init.method === "POST"
+  );
+  expect(JSON.parse(post[1].body).recurrence).toBe("weekly");
+});

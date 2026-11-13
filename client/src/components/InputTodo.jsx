@@ -2,12 +2,14 @@ import { API_URL } from "../config";
 import { Fragment, useState } from "react";
 import { authHeader, errorMessage, localDate } from "../api";
 import CategorySelect from "./CategorySelect";
+import { REPEAT_OPTIONS } from "../repeat";
 
 const InputTodo = ({ getTodos, todos }) => {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("Low");
   const [category, setCategory] = useState("Personal");
+  const [recurrence, setRecurrence] = useState("none");
   const [error, setError] = useState("");
   const [formKey, setFormKey] = useState(0);
   const [sentence, setSentence] = useState("");
@@ -58,7 +60,7 @@ const InputTodo = ({ getTodos, todos }) => {
       return;
     }
     try {
-      const body = { description, due_date: dueDate, priority, category };
+      const body = { description, due_date: dueDate, priority, category, recurrence };
       const response = await fetch(`${API_URL}/todos`, {
         method: "POST",
         headers: {
@@ -72,6 +74,7 @@ const InputTodo = ({ getTodos, todos }) => {
       setDueDate("");
       setPriority("Low");
       setCategory("Personal");
+      setRecurrence("none");
       setFormKey((key) => key + 1);
       setError("");
       getTodos();
@@ -113,7 +116,7 @@ const InputTodo = ({ getTodos, todos }) => {
           {fillNote}
         </p>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <input
           type="text"
           className="w-full p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 placeholder-gray-400"
@@ -138,6 +141,20 @@ const InputTodo = ({ getTodos, todos }) => {
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>
           <option value="High">High</option>
+        </select>
+        <select
+          className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 disabled:opacity-50"
+          value={dueDate ? recurrence : "none"}
+          aria-label="Repeat"
+          title={dueDate ? "Repeat" : "Pick a due date to repeat"}
+          disabled={!dueDate}
+          onChange={(e) => setRecurrence(e.target.value)}
+        >
+          {REPEAT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
         <CategorySelect
           key={formKey}

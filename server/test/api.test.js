@@ -211,6 +211,119 @@ test("export then import round-trips and import is all-or-nothing", async () => 
   assert.equal(unchanged, after);
 });
 
+test("ticking a repeating todo creates the next one, once", async () => {
+  names.push(`frank_${suffix}`);
+  const token = await signup(`frank_${suffix}`);
+  const auth = { Authorization: `Bearer ${token}` };
+  const created = await request(app)
+    .post("/todos")
+    .set(auth)
+    .send({ description: "water plants", due_date: "2026-01-31", recurrence: "monthly" })
+    .expect(201);
+  assert.equal(created.body.recurrence, "monthly");
+  const id = created.body.todo_id;
+  const body = (completed) => ({
+    description: "water plants",
+    due_date: "2026-01-31",
+    recurrence: "monthly",
+    completed,
+  });
+
+  const done = await request(app).put(`/todos/${id}`).set(auth).send(body(true)).expect(200);
+  assert.equal(done.body.completed, true);
+  assert.equal(done.body.next.due_date, "2026-02-28");
+  assert.equal(done.body.next.completed, false);
+  assert.equal(done.body.next.recurrence, "monthly");
+
+  // Untick and tick again: no second copy of the same next todo.
+  await request(app).put(`/todos/${id}`).set(auth).send(body(false)).expect(200);
+  const again = await request(app).put(`/todos/${id}`).set(auth).send(body(true)).expect(200);
+  assert.equal(again.body.next, undefined);
+  const all = (await request(app).get("/todos").set(auth).expect(200)).body;
+  assert.equal(all.filter((t) => t.due_date === "2026-02-28").length, 1);
+
+  // Editing something else on an already completed todo does not spawn.
+  await request(app)
+    .put(`/todos/${id}`)
+    .set(auth)
+    .send({ ...body(true), priority: "High" })
+    .expect(200);
+  const after = (await request(app).get("/todos").set(auth).expect(200)).body;
+  assert.equal(after.length, all.length);
+
+  // A one-off todo ticked done creates nothing.
+  const once = await request(app)
+    .post("/todos")
+    .set(auth)
+    .send({ description: "one-off", due_date: "2026-01-31" })
+    .expect(201);
+  const tick = await request(app)
+    .put(`/todos/${once.body.todo_id}`)
+    .set(auth)
+    .send({ description: "one-off", due_date: "2026-01-31", completed: true })
+    .expect(200);
+  assert.equal(tick.body.next, undefined);
+
+  await request(app)
+    .post("/todos")
+    .set(auth)
+    .send({ description: "no date", recurrence: "daily" })
+    .expect(400);
+  await request(app)
+    .post("/todos")
+    .set(auth)
+    .send({ description: "bad rule", due_date: "2026-01-31", recurrence: "hourly" })
+    .expect(400);
+});
+
+test("reminders: overdue, today and tomorrow for the caller's date, open todos only", async () => {
+  names.push(`gina_${suffix}`);
+  const token = await signup(`gina_${suffix}`);
+  const auth = { Authorization: token };
+  const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  const add = (description, due_date, completed = false) =>
+    request(app).post("/todos").set(auth).send({ description, due_date, completed }).expect(201);
+  await add("two days ago", day(-2));
+  await add("today", day(0));
+  await add("tomorrow", day(1));
+  await add("next week", day(7));
+  await add("done and overdue", day(-3), true);
+  await request(app).post("/todos").set(auth).send({ description: "no date" }).expect(201);
+
+  const res = await request(app)
+    .get(`/todos/reminders?today=${day(0)}`)
+    .set(auth)
+    .expect(200);
+  assert.deepEqual(
+    res.body.overdue.map((t) => t.description),
+    ["two days ago"]
+  );
+  assert.deepEqual(
+    res.body.today.map((t) => t.description),
+    ["today"]
+  );
+  assert.deepEqual(
+    res.body.tomorrow.map((t) => t.description),
+    ["tomorrow"]
+  );
+  assert.equal(res.body.today[0].due_date, day(0));
+
+  // Another user sees none of it.
+  names.push(`hank_${suffix}`);
+  const other = await signup(`hank_${suffix}`);
+  const empty = await request(app)
+    .get(`/todos/reminders?today=${day(0)}`)
+    .set("Authorization", other)
+    .expect(200);
+  assert.deepEqual(empty.body, { overdue: [], today: [], tomorrow: [] });
+
+  await request(app).get("/todos/reminders").set(auth).expect(400);
+  await request(app).get("/todos/reminders?today=2020-01-01").set(auth).expect(400);
+  await request(app)
+    .get(`/todos/reminders?today=${day(0)}`)
+    .expect(401);
+});
+
 test("login is rate limited", async () => {
   const limited = createApp({ authLimit: 3 });
   let last;

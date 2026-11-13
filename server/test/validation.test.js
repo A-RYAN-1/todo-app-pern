@@ -38,6 +38,7 @@ test("todo: applies defaults", () => {
     priority: "Low",
     category: null,
     completed: false,
+    recurrence: null,
   });
 });
 
