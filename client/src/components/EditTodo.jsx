@@ -63,7 +63,7 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
 
   return (
     <Fragment>
-      <div className="flex items-center gap-3 flex-1 bg-gray-700 rounded-lg p-3 shadow-md">
+      <div className="flex flex-wrap items-center gap-3 flex-1 bg-gray-700 rounded-lg p-3 shadow-md">
         {error && (
           <p role="alert" className="text-red-400 text-sm font-medium bg-red-900/50 p-2 rounded">
             {error}
@@ -72,7 +72,7 @@ const EditTodo = ({ todo, todos, getTodos, setEditingTodoId }) => {
         <input
           type="text"
           aria-label="Todo description"
-          className="flex-1 p-2 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
+          className="flex-1 min-w-[12rem] p-2 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />

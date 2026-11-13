@@ -1,14 +1,14 @@
 export const REPEAT_OPTIONS = [
-  { value: "none", label: "Does not repeat" },
-  { value: "daily", label: "Repeats daily" },
-  { value: "weekly", label: "Repeats weekly" },
-  { value: "monthly", label: "Repeats monthly" },
+  { value: "none", label: "No repeat" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
 ];
 
 // "weekly" -> "Repeats weekly"; anything else (null, "none") -> "".
 export function repeatLabel(rule) {
   const option = REPEAT_OPTIONS.find((o) => o.value === rule && o.value !== "none");
-  return option ? option.label : "";
+  return option ? `Repeats ${option.label.toLowerCase()}` : "";
 }
 
 // The API answers { overdue, today, tomorrow }; a malformed answer counts as empty.
