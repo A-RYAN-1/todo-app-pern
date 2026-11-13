@@ -130,7 +130,11 @@ const InputTodo = ({ getTodos, todos }) => {
           aria-label="Due date"
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
           value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
+          onChange={(e) => {
+            setDueDate(e.target.value);
+            // A repeat needs a due date; clearing the date clears the repeat too.
+            if (!e.target.value) setRecurrence("none");
+          }}
         />
         <select
           className="p-3 rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"

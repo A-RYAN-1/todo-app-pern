@@ -234,3 +234,15 @@ test("the repeat choice is sent with the new todo and needs a due date", async (
   );
   expect(JSON.parse(post[1].body).recurrence).toBe("weekly");
 });
+
+test("clearing the due date also clears the repeat choice", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockReturnValue(json([]));
+  await logIn();
+  const date = await screen.findByLabelText("Due date");
+  await userEvent.type(date, "2026-11-20");
+  await userEvent.selectOptions(screen.getByLabelText("Repeat"), "weekly");
+  await userEvent.clear(date);
+  expect(screen.getByLabelText("Repeat")).toBeDisabled();
+  await userEvent.type(date, "2026-11-21");
+  expect(screen.getByLabelText("Repeat")).toHaveValue("none");
+});
