@@ -41,7 +41,7 @@
   </a>
 </p>
 
-<p align="center"><sub>Last updated: 2026-11-13 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback), repeating tasks and reminders live</sub></p>
+<p align="center"><sub>Last updated: 2026-11-16 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback), repeating tasks and reminders live</sub></p>
 
 ---
 
@@ -99,9 +99,12 @@ Things to try in the first two minutes:
   <tr>
     <td colspan="2"><img src="docs/images/fill-form.png" alt="The add form after typing one sentence and pressing Fill form: description, due date, priority and category are filled in, with a note that the AI helper filled them and that nothing is saved until Add"><p align="center"><sub>Fill form: one sentence fills the fields, nothing is saved until Add (<a href="#features">features</a>, <a href="server/eval/README.md">evaluation</a>)</sub></p></td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/api-docs.png" alt="Swagger UI at /docs listing the API routes grouped as Auth, Todos and Data, with an Authorize button for the token"><p align="center"><sub>Swagger UI at <code>/docs</code>, built from <code>/openapi.json</code> (<a href="#api-reference">API reference</a>)</sub></p></td>
+  </tr>
 </table>
 
-<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17.</sub>
+<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16.</sub>
 
 ## Features
 
@@ -114,6 +117,7 @@ Things to try in the first two minutes:
 - **Repeating tasks**: give a task a due date and choose daily, weekly or monthly. Ticking it done creates the next one, due one step after the date it was due (not the day you ticked it), so a weekly task ticked late does not drift. Untick and tick again and no second copy appears. A monthly task keeps its day of the month and clamps to a shorter month (31 Jan becomes 28 Feb).
 - **Reminders**: a panel at the top lists what is overdue, due today and due tomorrow, worked out by the server from your own date. You can turn on browser notifications (asked only when you press the button); each task is notified once a day, while the site is open in a tab. Overdue tasks also get a red outline and tasks due within a day a badge.
 - **Export and import**: your todos as JSON; import is validated item by item and applied in one transaction.
+- **API docs**: an OpenAPI 3 spec at `/openapi.json` and Swagger UI at `/docs`, served by the API itself with no external scripts. A test fails when a route is added or removed without the spec changing.
 - **Operations**: `/health` checks the database, requests carry an id, logs are JSON lines.
 
 ## Why it exists
@@ -205,7 +209,7 @@ docs/images/              screenshots used in this README
 
 ## API reference
 
-Every route except `/health`, `/register` and `/login` needs the token from `/login` in the `authorization` header (a `Bearer ` prefix is accepted). Errors are JSON: `{ "error": "message" }`.
+Every route except `/health`, `/register` and `/login` needs the token from `/login` in the `authorization` header (a `Bearer ` prefix is accepted). Errors are JSON: `{ "error": "message" }`. The same routes are described in `server/openapi.json`, served at `/openapi.json`, and can be tried in Swagger UI at `/docs` (press Authorize and paste the token from `/login`).
 
 | Method and path | What it does | Success | Failures |
 |---|---|---|---|
@@ -226,7 +230,7 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 | Area | What is in place |
 |---|---|
 | Tests | 48 server tests (validation, the rule parser, model-answer checks, quota, the Gemini client, evaluation scoring, date arithmetic for repeating tasks, and API tests against Postgres: auth, validation, per-user isolation, import rollback, repeat-once on ticking, reminder buckets, rate limit, health) and 22 client tests (login errors, token storage, ticking a task, expired token, categories, Fill form, the Reminders panel, the repeat choice and badge). All passing on 2026-11-13. |
-| CI | GitHub Actions on every push and pull request: ESLint, Prettier, migrations, tests and `npm audit` for the API; ESLint, Prettier, tests, build and `npm audit` for the client. |
+| CI | GitHub Actions on every push and pull request: ESLint, Prettier, migrations, tests (including the check that `server/openapi.json` is valid OpenAPI 3 and matches the served routes) and `npm audit` for the API; ESLint, Prettier, tests, build and `npm audit` for the client. |
 | Monitoring | An uptime workflow requests `/health` and the client every 30 minutes; a failure emails the repository owner. |
 | Security | Passwords hashed with bcrypt, tokens expire, helmet headers, CORS limited to the client origin, login and register rate limited, every query parameterised and scoped to the user, secrets only from the environment. `npm audit` for production dependencies: 0 vulnerabilities on 2026-10-17 (server and client). |
 | Logs | One JSON line per request (id, method, path, status, duration) and per error (id, code); no passwords, tokens or todo text. |
@@ -357,6 +361,7 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - [ ] Lighthouse for the logged-in screens
 - [x] Fill a todo from one sentence (2026-11-09)
 - [x] Due-date reminders and recurring tasks (2026-11-13)
+- [x] OpenAPI spec and Swagger UI, checked against the routes in CI (2026-11-16)
 
 ## Credits
 

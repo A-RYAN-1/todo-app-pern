@@ -10,6 +10,7 @@ const config = require("./config");
 const { JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN } = config;
 const { validateCredentials, validateTodo, parseId } = require("./validation");
 const logger = require("./logger");
+const { docsRouter } = require("./docs");
 const { parseText } = require("./nlparse");
 const { nextDueDate } = require("./recurrence");
 const { createGemini } = require("./nlparse/gemini");
@@ -367,6 +368,8 @@ function createApp({
       client.release();
     }
   });
+
+  app.use(docsRouter());
 
   app.use((req, res) => fail(res, 404, "Not found"));
 
