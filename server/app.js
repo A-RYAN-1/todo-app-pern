@@ -8,7 +8,15 @@ const bcrypt = require("bcrypt");
 const pool = require("./connect_server_and_database");
 const config = require("./config");
 const { JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN } = config;
-const { validateCredentials, validateTodo, parseId } = require("./validation");
+const {
+  validateCredentials,
+  validateTodo,
+  validateSubtask,
+  validateSubtaskPatch,
+  validateOrder,
+  MAX_SUBTASKS,
+  parseId,
+} = require("./validation");
 const logger = require("./logger");
 const { docsRouter } = require("./docs");
 const { parseText } = require("./nlparse");
@@ -211,7 +219,7 @@ function createApp({
     if (error) return fail(res, 400, error);
     try {
       const result = await pool.query(
-        "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+        "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence, position) VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(position), 0) + 1 FROM todo WHERE user_id = $1 AND parent_id IS NULL)) RETURNING *",
         [
           req.user.id,
           value.description,
@@ -228,15 +236,64 @@ function createApp({
     }
   });
 
+  // Top-level todos in the user's own order, each with its subtasks and their progress.
   app.get("/todos", authenticate, async (req, res) => {
     try {
       const result = await pool.query(
-        "SELECT * FROM todo WHERE user_id = $1 ORDER BY due_date ASC NULLS LAST, todo_id ASC",
+        "SELECT * FROM todo WHERE user_id = $1 ORDER BY position ASC NULLS LAST, todo_id ASC",
         [req.user.id]
       );
-      res.json(result.rows);
+      const children = new Map();
+      const todos = [];
+      for (const row of result.rows) {
+        if (row.parent_id === null) todos.push(row);
+        else children.set(row.parent_id, [...(children.get(row.parent_id) || []), row]);
+      }
+      res.json(
+        todos.map((todo) => {
+          const subtasks = children.get(todo.todo_id) || [];
+          const done = subtasks.filter((s) => s.completed).length;
+          return { ...todo, subtasks, progress: { done, total: subtasks.length } };
+        })
+      );
     } catch (err) {
       return serverError(req, res, err, "list todos failed");
+    }
+  });
+
+  // New order for some of the user's todos (or the subtasks of one parent): the ids take, in the order
+  // sent, the positions those same ids hold now, so todos left out keep theirs.
+  app.put("/todos/order", authenticate, async (req, res) => {
+    const { error, value } = validateOrder(req.body);
+    if (error) return fail(res, 400, error);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const held = await client.query(
+        `SELECT position FROM todo
+          WHERE user_id = $1 AND todo_id = ANY($2::int[]) AND parent_id IS NOT DISTINCT FROM $3::int
+          ORDER BY position ASC NULLS LAST, todo_id ASC
+            FOR UPDATE`,
+        [req.user.id, value.ids, value.parentId]
+      );
+      if (held.rows.length !== value.ids.length) {
+        await client.query("ROLLBACK");
+        return fail(res, 404, "Todo not found");
+      }
+      const slots = held.rows.map((r) => r.position);
+      await client.query(
+        `UPDATE todo SET position = o.slot
+           FROM unnest($2::int[], $3::int[]) AS o(id, slot)
+          WHERE todo.todo_id = o.id AND todo.user_id = $1`,
+        [req.user.id, value.ids, slots]
+      );
+      await client.query("COMMIT");
+      res.json({ ordered: value.ids.length });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      return serverError(req, res, err, "reorder failed");
+    } finally {
+      client.release();
     }
   });
 
@@ -249,7 +306,7 @@ function createApp({
     try {
       await client.query("BEGIN");
       const before = await client.query(
-        "SELECT completed FROM todo WHERE todo_id = $1 AND user_id = $2 FOR UPDATE",
+        "SELECT completed FROM todo WHERE todo_id = $1 AND user_id = $2 AND parent_id IS NULL FOR UPDATE",
         [id, req.user.id]
       );
       if (before.rows.length === 0) {
@@ -257,7 +314,7 @@ function createApp({
         return fail(res, 404, "Todo not found");
       }
       const result = await client.query(
-        "UPDATE todo SET description = $1, due_date = $2, priority = $3, category = $4, completed = $5, recurrence = $6 WHERE todo_id = $7 AND user_id = $8 RETURNING *",
+        "UPDATE todo SET description = $1, due_date = $2, priority = $3, category = $4, completed = $5, recurrence = $6 WHERE todo_id = $7 AND user_id = $8 AND parent_id IS NULL RETURNING *",
         [
           value.description,
           value.due_date,
@@ -276,8 +333,9 @@ function createApp({
       if (value.recurrence && value.completed && !before.rows[0].completed) {
         const nextDue = nextDueDate(value.due_date, value.recurrence);
         const created = await client.query(
-          `INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence)
-           SELECT $1::int, $2::varchar, $3::date, $4::varchar, $5::varchar, FALSE, $6::varchar
+          `INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence, position)
+           SELECT $1::int, $2::varchar, $3::date, $4::varchar, $5::varchar, FALSE, $6::varchar,
+                  (SELECT COALESCE(MAX(position), 0) + 1 FROM todo WHERE user_id = $1 AND parent_id IS NULL)
             WHERE NOT EXISTS (
               SELECT 1 FROM todo
                WHERE user_id = $1 AND description = $2 AND due_date = $3
@@ -304,6 +362,66 @@ function createApp({
     }
   });
 
+  app.post("/todos/:id/subtasks", authenticate, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return fail(res, 400, "Invalid todo id");
+    const { error, value } = validateSubtask(req.body);
+    if (error) return fail(res, 400, error);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const parent = await client.query(
+        "SELECT parent_id FROM todo WHERE todo_id = $1 AND user_id = $2 FOR UPDATE",
+        [id, req.user.id]
+      );
+      if (parent.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return fail(res, 404, "Todo not found");
+      }
+      if (parent.rows[0].parent_id !== null) {
+        await client.query("ROLLBACK");
+        return fail(res, 400, "A subtask cannot have subtasks");
+      }
+      const result = await client.query(
+        `INSERT INTO todo (user_id, parent_id, description, position)
+         SELECT $1::int, $2::int, $3::varchar, COALESCE(MAX(position), 0) + 1
+           FROM todo WHERE parent_id = $2
+         HAVING COUNT(*) < $4
+         RETURNING *`,
+        [req.user.id, id, value.description, MAX_SUBTASKS]
+      );
+      if (result.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return fail(res, 400, `A todo can have at most ${MAX_SUBTASKS} subtasks`);
+      }
+      await client.query("COMMIT");
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      return serverError(req, res, err, "create subtask failed");
+    } finally {
+      client.release();
+    }
+  });
+
+  app.patch("/subtasks/:id", authenticate, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return fail(res, 400, "Invalid subtask id");
+    const { error, value } = validateSubtaskPatch(req.body);
+    if (error) return fail(res, 400, error);
+    try {
+      const result = await pool.query(
+        `UPDATE todo SET description = COALESCE($1, description), completed = COALESCE($2, completed)
+          WHERE todo_id = $3 AND user_id = $4 AND parent_id IS NOT NULL RETURNING *`,
+        [value.description ?? null, value.completed ?? null, id, req.user.id]
+      );
+      if (result.rows.length === 0) return fail(res, 404, "Subtask not found");
+      res.json(result.rows[0]);
+    } catch (err) {
+      return serverError(req, res, err, "update subtask failed");
+    }
+  });
+
   app.delete("/todos/:id", authenticate, async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return fail(res, 400, "Invalid todo id");
@@ -322,7 +440,7 @@ function createApp({
   app.get("/export", authenticate, async (req, res) => {
     try {
       const result = await pool.query(
-        "SELECT description, due_date, priority, category, completed, recurrence FROM todo WHERE user_id = $1 ORDER BY todo_id",
+        "SELECT description, due_date, priority, category, completed, recurrence FROM todo WHERE user_id = $1 AND parent_id IS NULL ORDER BY todo_id",
         [req.user.id]
       );
       res.json(result.rows);
@@ -347,7 +465,7 @@ function createApp({
       await client.query("BEGIN");
       for (const v of values) {
         await client.query(
-          "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+          "INSERT INTO todo (user_id, description, due_date, priority, category, completed, recurrence, position) VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(position), 0) + 1 FROM todo WHERE user_id = $1 AND parent_id IS NULL))",
           [
             req.user.id,
             v.description,

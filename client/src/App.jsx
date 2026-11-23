@@ -54,6 +54,8 @@ const App = () => {
     return matchesSearch && matchesPriority && matchesCategory;
   });
 
+  const filtering = searchTerm !== "" || priorityFilter !== "All" || categoryFilter !== "All";
+
   const exportTodos = async () => {
     const response = await fetch(`${API_URL}/export`, { headers: authHeader() });
     if (!response.ok) {
@@ -189,7 +191,12 @@ const App = () => {
               </div>
             </div>
           </div>
-          <ListTodos todos={filteredTodos} allTodos={todos} getTodos={getTodos} />
+          <ListTodos
+            todos={filteredTodos}
+            allTodos={todos}
+            getTodos={getTodos}
+            canReorder={!filtering}
+          />
         </div>
       </div>
     </main>

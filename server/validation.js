@@ -72,8 +72,69 @@ function validateTodo(body) {
   };
 }
 
+const MAX_SUBTASKS = 50;
+const MAX_ORDER = 500;
+const MAX_ID = 999999999;
+
+function validateSubtaskText(description) {
+  if (typeof description !== "string" || description.trim().length === 0) {
+    return "Description is required";
+  }
+  if (description.length > 300) return "Description must be at most 300 characters";
+  return null;
+}
+
+// New subtask: a description only.
+function validateSubtask(body) {
+  const b = body || {};
+  const error = validateSubtaskText(b.description);
+  return error ? { error } : { value: { description: b.description.trim() } };
+}
+
+// Change to a subtask: a new description, a done state, or both.
+function validateSubtaskPatch(body) {
+  const b = body || {};
+  const value = {};
+  if (b.description !== undefined) {
+    const error = validateSubtaskText(b.description);
+    if (error) return { error };
+    value.description = b.description.trim();
+  }
+  if (b.completed !== undefined) {
+    if (typeof b.completed !== "boolean") return { error: "Completed must be true or false" };
+    value.completed = b.completed;
+  }
+  if (Object.keys(value).length === 0) return { error: "Send a description or completed" };
+  return { value };
+}
+
+const isId = (n) => Number.isInteger(n) && n > 0 && n <= MAX_ID;
+
+// New order: the todo ids in the order wanted, each once, with the parent when they are subtasks.
+function validateOrder(body) {
+  const { ids, parent_id: rawParent } = body || {};
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_ORDER) {
+    return { error: `ids must be a list of 1 to ${MAX_ORDER} todo ids` };
+  }
+  if (!ids.every(isId)) return { error: "ids must be positive whole numbers" };
+  if (new Set(ids).size !== ids.length) return { error: "ids must not repeat" };
+  if (rawParent !== undefined && rawParent !== null && !isId(rawParent)) {
+    return { error: "parent_id must be a positive whole number" };
+  }
+  return { value: { ids, parentId: rawParent ?? null } };
+}
+
 function parseId(raw) {
   return /^\d{1,9}$/.test(raw) && Number(raw) > 0 ? Number(raw) : null;
 }
 
-module.exports = { validateCredentials, validateTodo, parseId, isRealDate };
+module.exports = {
+  validateCredentials,
+  validateTodo,
+  validateSubtask,
+  validateSubtaskPatch,
+  validateOrder,
+  MAX_SUBTASKS,
+  parseId,
+  isRealDate,
+};
