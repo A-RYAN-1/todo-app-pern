@@ -330,3 +330,12 @@ test("ordering is switched off while a search narrows the list", async () => {
   await userEvent.type(screen.getByLabelText("Search todos"), "ship");
   expect(screen.queryByLabelText("Move ship it up")).not.toBeInTheDocument();
 });
+
+test("a todo without subtasks offers an Add a subtask button that opens the field", async () => {
+  globalThis.fetch.mockReturnValueOnce(json({ token: "tok" })).mockReturnValue(json([SECOND]));
+  await logIn();
+  const open = await screen.findByRole("button", { name: "Add a subtask to ship it" });
+  expect(screen.queryByPlaceholderText("Add a subtask")).not.toBeInTheDocument();
+  await userEvent.click(open);
+  expect(await screen.findByPlaceholderText("Add a subtask")).toHaveFocus();
+});

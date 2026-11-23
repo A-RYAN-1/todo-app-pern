@@ -6,6 +6,7 @@ import Icon from "./Icon";
 const Subtasks = ({ todo, getTodos }) => {
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
   const subtasks = Array.isArray(todo.subtasks) ? todo.subtasks : [];
 
   const send = async (url, method, body) => {
@@ -29,6 +30,7 @@ const Subtasks = ({ todo, getTodos }) => {
     if (!text.trim()) return;
     if (await send(`/todos/${todo.todo_id}/subtasks`, "POST", { description: text })) {
       setText("");
+      setAdding(false);
       getTodos();
     }
   };
@@ -75,24 +77,36 @@ const Subtasks = ({ todo, getTodos }) => {
           ))}
         </ul>
       )}
-      <form onSubmit={add} className="flex gap-2">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={300}
-          placeholder="Add a subtask"
-          aria-label={`Add a subtask to ${todo.description}`}
-          className="flex-1 p-2 text-sm rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400"
-        />
+      {subtasks.length === 0 && !adding ? (
         <button
-          type="submit"
-          className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-          aria-label={`Add subtask to ${todo.description}`}
+          type="button"
+          className="text-sm text-gray-300 hover:text-white underline underline-offset-2"
+          onClick={() => setAdding(true)}
+          aria-label={`Add a subtask to ${todo.description}`}
         >
-          Add
+          Add a subtask
         </button>
-      </form>
+      ) : (
+        <form onSubmit={add} className="flex gap-2">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={300}
+            placeholder="Add a subtask"
+            aria-label={`Add a subtask to ${todo.description}`}
+            autoFocus={subtasks.length === 0}
+            className="flex-1 p-2 text-sm rounded-lg bg-gray-600 text-gray-200 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-400"
+          />
+          <button
+            type="submit"
+            className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            aria-label={`Add subtask to ${todo.description}`}
+          >
+            Add
+          </button>
+        </form>
+      )}
       {error && (
         <p role="alert" className="text-red-400 text-sm mt-2">
           {error}
