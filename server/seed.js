@@ -10,7 +10,7 @@ const pool = require("./connect_server_and_database");
   );
   if (user.rows.length > 0) {
     await pool.query(
-      "INSERT INTO todo (user_id, description, due_date, priority, category) VALUES ($1, 'Try editing or completing me', CURRENT_DATE + 7, 'High', 'demo'), ($1, 'Export these as JSON', CURRENT_DATE + 14, 'Low', 'demo')",
+      "INSERT INTO todo (user_id, description, due_date, priority, category, position) VALUES ($1, 'Try editing or completing me', CURRENT_DATE + 7, 'High', 'demo', 1), ($1, 'Export these as JSON', CURRENT_DATE + 14, 'Low', 'demo', 2)",
       [user.rows[0].user_id]
     );
     console.log("demo account created");

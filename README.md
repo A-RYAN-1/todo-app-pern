@@ -41,7 +41,7 @@
   </a>
 </p>
 
-<p align="center"><sub>Last updated: 2026-11-16 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback), repeating tasks and reminders live</sub></p>
+<p align="center"><sub>Last updated: 2026-11-23 &middot; Live on free tiers (Vercel, Render, Neon), Fill form (AI helper with a rules fallback), repeating tasks, reminders, subtasks and your own order</sub></p>
 
 ---
 
@@ -100,11 +100,14 @@ Things to try in the first two minutes:
     <td colspan="2"><img src="docs/images/fill-form.png" alt="The add form after typing one sentence and pressing Fill form: description, due date, priority and category are filled in, with a note that the AI helper filled them and that nothing is saved until Add"><p align="center"><sub>Fill form: one sentence fills the fields, nothing is saved until Add (<a href="#features">features</a>, <a href="server/eval/README.md">evaluation</a>)</sub></p></td>
   </tr>
   <tr>
+    <td colspan="2"><img src="docs/images/subtasks-and-order.png" alt="Two todos in the list: the second has three subtasks, one ticked, a 1/3 subtasks badge and up and down buttons to move it"><p align="center"><sub>Subtasks with a progress badge, an Add field per todo, and buttons (or drag and drop) to put the todos in your own order (<a href="#features">features</a>)</sub></p></td>
+  </tr>
+  <tr>
     <td colspan="2"><img src="docs/images/api-docs.png" alt="Swagger UI at /docs listing the API routes grouped as Auth, Todos and Data, with an Authorize button for the token"><p align="center"><sub>Swagger UI at <code>/docs</code>, built from <code>/openapi.json</code> (<a href="#api-reference">API reference</a>)</sub></p></td>
   </tr>
 </table>
 
-<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16.</sub>
+<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16, and the subtasks screenshot from a local server with the demo account on 2026-11-23.</sub>
 
 ## Features
 
@@ -114,6 +117,8 @@ Things to try in the first two minutes:
 - **Your own categories**: Work, Personal and Shopping are always there; choose "New category..." in the add or edit form to type your own (up to 50 characters). Every category you have used appears in the forms and the filter, with no setup.
 - **Fill from one sentence**: type "call mum friday 5pm high priority" and press Fill form; the description, due date, priority and category are filled in for you to check. Nothing is saved until you press Add. A Gemini model reads the sentence when a key is configured, with a plain rule-based parser as the fallback, and the page says which one filled the form. Measured in [`server/eval`](server/eval/README.md).
 - **Search and filters**: by text, priority and category.
+- **Subtasks**: a todo can have up to 50 subtasks, each with its own done box; the todo shows how many are done (`1/3 subtasks`) and the API returns the same count as `progress`. A subtask cannot have subtasks of its own. Deleting a todo deletes its subtasks in the same statement.
+- **Your own order**: put the todos in the order you want with the up and down buttons or by dragging a card onto another. The order is stored per user, so it is the same after you log in again; new todos go to the end. Ordering is switched off while a search or filter narrows the list, so a move is never ambiguous.
 - **Repeating tasks**: give a task a due date and choose daily, weekly or monthly. Ticking it done creates the next one, due one step after the date it was due (not the day you ticked it), so a weekly task ticked late does not drift. Untick and tick again and no second copy appears. A monthly task keeps its day of the month and clamps to a shorter month (31 Jan becomes 28 Feb).
 - **Reminders**: a panel at the top lists what is overdue, due today and due tomorrow, worked out by the server from your own date. You can turn on browser notifications (asked only when you press the button); each task is notified once a day, while the site is open in a tab. Overdue tasks also get a red outline and tasks due within a day a badge.
 - **Export and import**: your todos as JSON; import is validated item by item and applied in one transaction.
@@ -155,7 +160,7 @@ sequenceDiagram
     DB-->>API: updated row, or none
     API-->>Client: 200 todo, or 404 if it is not yours
     Client->>API: GET /todos
-    API-->>Client: the list, ordered by due date
+    API-->>Client: the list, in your own order, with subtasks
 ```
 
 Both queries carry `user_id` from the verified token, so a todo that belongs to someone else behaves exactly like one that does not exist.
@@ -216,20 +221,23 @@ Every route except `/health`, `/register` and `/login` needs the token from `/lo
 | `GET /health` | Database check | 200 `{status}` | 503 |
 | `POST /register` | Create an account: username 3-50, password 8-72 characters | 201 `{user_id, username}` | 400, 409 taken, 429 |
 | `POST /login` | Exchange credentials for a token | 200 `{token}` | 400, 401, 429 |
-| `GET /todos` | Your todos, by due date | 200 list | 401 |
+| `GET /todos` | Your todos in your own order, each with `subtasks` (in order) and `progress` (`{done, total}`); subtasks are not listed as todos | 200 list | 401 |
 | `POST /todos/parse` | `{ text, today }` (`today` is the caller's date, `YYYY-MM-DD`, within two days of the server's): returns `description`, `due_date`, `priority`, `category`, `source` (`model` or `rules`) and `limited`. Saves nothing | 200 | 400, 401, 429 |
 | `GET /todos/reminders?today=` | Your open todos that are overdue, due today or due tomorrow by the caller's date (`today`, `YYYY-MM-DD`, within two days of the server's): `{ overdue, today, tomorrow }` | 200 | 400, 401 |
 | `POST /todos` | Create: `description` (1-300), optional `due_date` (`YYYY-MM-DD`), `priority` (Low, Medium, High), `category` (up to 50, trimmed; any text, so it can be a custom one), `completed`, `recurrence` (`daily`, `weekly`, `monthly`, `none` or absent; needs a due date) | 201 todo | 400, 401 |
+| `PUT /todos/order` | `{ ids, parent_id? }`: the ids (1 to 500, each once) take, in the order sent, the positions those ids hold now, so todos left out keep theirs. With `parent_id` the ids are the subtasks of that todo | 200 `{ordered}` | 400, 401, 404 if any id is not yours or not in that scope |
+| `POST /todos/:id/subtasks` | `{ description }` (1-300): add a subtask to one of your todos; at most 50 each, and not to a subtask | 201 subtask | 400, 401, 404 |
+| `PATCH /subtasks/:id` | `{ description?, completed? }` on one of your subtasks | 200 subtask | 400, 401, 404 |
 | `PUT /todos/:id` | Replace the editable fields of one of your todos. Ticking a repeating todo done also creates the next one and returns it as `next` | 200 todo | 400, 401, 404 |
-| `DELETE /todos/:id` | Delete one of your todos | 200 `{deleted}` | 400, 401, 404 |
-| `GET /export` | Your todos without ids | 200 list | 401 |
+| `DELETE /todos/:id` | Delete one of your todos or subtasks; a todo takes its subtasks with it | 200 `{deleted}` | 400, 401, 404 |
+| `GET /export` | Your todos without ids (top-level only; subtasks are not exported) | 200 list | 401 |
 | `POST /import` | `{ "todos": [...] }`, 1 to 500 items, all or nothing | 201 `{imported}` | 400, 401 |
 
 ## Engineering quality
 
 | Area | What is in place |
 |---|---|
-| Tests | 48 server tests (validation, the rule parser, model-answer checks, quota, the Gemini client, evaluation scoring, date arithmetic for repeating tasks, and API tests against Postgres: auth, validation, per-user isolation, import rollback, repeat-once on ticking, reminder buckets, rate limit, health) and 22 client tests (login errors, token storage, ticking a task, expired token, categories, Fill form, the Reminders panel, the repeat choice and badge). All passing on 2026-11-13. |
+| Tests | 65 server tests (validation, the rule parser, model-answer checks, quota, the Gemini client, evaluation scoring, date arithmetic for repeating tasks, and API tests against Postgres: subtasks, manual order and the migration, auth, validation, per-user isolation, import rollback, repeat-once on ticking, reminder buckets, rate limit, health) and 33 client tests (subtasks, moving todos, the order helpers, login errors, token storage, ticking a task, expired token, categories, Fill form, the Reminders panel, the repeat choice and badge). All passing on 2026-11-13. |
 | CI | GitHub Actions on every push and pull request: ESLint, Prettier, migrations, tests (including the check that `server/openapi.json` is valid OpenAPI 3 and matches the served routes) and `npm audit` for the API; ESLint, Prettier, tests, build and `npm audit` for the client. |
 | Monitoring | An uptime workflow requests `/health` and the client every 30 minutes; a failure emails the repository owner. |
 | Security | Passwords hashed with bcrypt, tokens expire, helmet headers, CORS limited to the client origin, login and register rate limited, every query parameterised and scoped to the user, secrets only from the environment. `npm audit` for production dependencies: 0 vulnerabilities on 2026-10-17 (server and client). |
@@ -349,6 +357,9 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - No password reset and no email: a forgotten password cannot be recovered.
 - Rate limiting covers login and register only, and counts per IP address.
 - Reminders are in the page: a browser notification needs the site open in a tab, and there is no email or phone push. A repeating task is created when you tick it, so a task nobody ticks does not repeat. A monthly task clamps to a shorter month and stays on the clamped day afterwards (31 Jan, 28 Feb, 28 Mar).
+- Subtasks are one level deep, are not exported or imported, and have no due date, priority or reordering in the page (the API can reorder them with `parent_id`). Dragging a card does not work on a touch screen; the up and down buttons do.
+- The order is last write wins: two tabs that reorder at the same time end with whichever request arrived last.
+- Subtasks and ordering were checked on a local API and Postgres with the demo account (2026-11-23), not yet on the live site.
 - Categories cannot be renamed or deleted in one step; a category disappears from the list when no task uses it, and renaming means editing each task.
 - Lighthouse was run on the login page only; the logged-in screens are not audited.
 - Fill from one sentence: on a fixed set of 85 hand-labelled sentences (today fixed to Monday 2026-11-09), the model with prompt `nl-task-v2` got description, due date and priority all right in 94.1% of them, and the rule parser 95.3%; the rule parser was written with those sentences in view, so that tie flatters it. On 25 differently worded sentences written afterwards and run once without tuning, the model got 84% and the rules 68% (a small sample). The prompt was tuned on 64 of the 85; the other 21 were held back (model 100%, but the prompt moved little between versions). Category is reported apart (model 63.5%, rules 80%) because the labels are partly a matter of taste. "next friday" on a Monday means the Friday of the same week by this project's rule. Measured 2026-11-09 on `gemini-3.5-flash-lite`; the quota is in memory, so it resets when the API restarts.
@@ -362,6 +373,9 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - [x] Fill a todo from one sentence (2026-11-09)
 - [x] Due-date reminders and recurring tasks (2026-11-13)
 - [x] OpenAPI spec and Swagger UI, checked against the routes in CI (2026-11-16)
+- [x] Subtasks and manual ordering (2026-11-23)
+- [ ] Shared lists with viewer and editor roles
+- [ ] Offline use with sync
 
 ## Credits
 

@@ -246,3 +246,87 @@ test("clearing the due date also clears the repeat choice", async () => {
   await userEvent.type(date, "2026-11-21");
   expect(screen.getByLabelText("Repeat")).toHaveValue("none");
 });
+
+const WITH_SUBTASKS = {
+  ...TODO,
+  subtasks: [
+    { todo_id: 11, description: "outline", completed: true },
+    { todo_id: 12, description: "draft", completed: false },
+  ],
+  progress: { done: 1, total: 2 },
+};
+const SECOND = { ...TODO, todo_id: 2, description: "ship it", subtasks: [] };
+
+const requestsTo = (method, suffix) =>
+  globalThis.fetch.mock.calls.filter(
+    ([url, init]) => url.endsWith(suffix) && init && init.method === method
+  );
+
+test("shows each todo's subtasks and how many are done", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([WITH_SUBTASKS]));
+  await logIn();
+  expect(await screen.findByText("outline")).toBeInTheDocument();
+  expect(screen.getByText("draft")).toBeInTheDocument();
+  expect(screen.getByText("1/2 subtasks")).toBeInTheDocument();
+  expect(screen.getByLabelText("Mark outline as done")).toBeChecked();
+  expect(screen.getByLabelText("Mark draft as done")).not.toBeChecked();
+});
+
+test("adding a subtask posts it to the todo", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([WITH_SUBTASKS]));
+  await logIn();
+  await userEvent.type(await screen.findByLabelText("Add a subtask to write tests"), "review");
+  await userEvent.click(screen.getByRole("button", { name: "Add subtask to write tests" }));
+  await waitFor(() => expect(requestsTo("POST", "/todos/1/subtasks")).toHaveLength(1));
+  expect(JSON.parse(requestsTo("POST", "/todos/1/subtasks")[0][1].body)).toEqual({
+    description: "review",
+  });
+});
+
+test("ticking a subtask patches only that subtask", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([WITH_SUBTASKS]));
+  await logIn();
+  await userEvent.click(await screen.findByLabelText("Mark draft as done"));
+  await waitFor(() => expect(requestsTo("PATCH", "/subtasks/12")).toHaveLength(1));
+  expect(JSON.parse(requestsTo("PATCH", "/subtasks/12")[0][1].body)).toEqual({ completed: true });
+});
+
+test("a refused subtask shows the server's message", async () => {
+  globalThis.fetch.mockImplementation((url, init = {}) => {
+    if (url.endsWith("/login")) return json({ token: "tok" });
+    if (init.method === "POST") return json({ error: "A todo can have at most 50 subtasks" }, 400);
+    return json([WITH_SUBTASKS]);
+  });
+  await logIn();
+  await userEvent.type(await screen.findByLabelText("Add a subtask to write tests"), "one more");
+  await userEvent.click(screen.getByRole("button", { name: "Add subtask to write tests" }));
+  expect(await screen.findByText("A todo can have at most 50 subtasks")).toBeInTheDocument();
+});
+
+test("moving a todo down sends the new order of all todos", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([WITH_SUBTASKS, SECOND]));
+  await logIn();
+  await userEvent.click(await screen.findByLabelText("Move write tests down"));
+  await waitFor(() => expect(requestsTo("PUT", "/todos/order")).toHaveLength(1));
+  expect(JSON.parse(requestsTo("PUT", "/todos/order")[0][1].body)).toEqual({ ids: [2, 1] });
+  expect(screen.getByLabelText("Move write tests up")).toBeDisabled();
+  expect(screen.getByLabelText("Move ship it down")).toBeDisabled();
+});
+
+test("ordering is switched off while a search narrows the list", async () => {
+  globalThis.fetch
+    .mockReturnValueOnce(json({ token: "tok" }))
+    .mockReturnValue(json([WITH_SUBTASKS, SECOND]));
+  await logIn();
+  expect(await screen.findByLabelText("Move write tests down")).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText("Search todos"), "ship");
+  expect(screen.queryByLabelText("Move ship it up")).not.toBeInTheDocument();
+});
