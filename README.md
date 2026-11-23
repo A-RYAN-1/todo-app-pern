@@ -100,14 +100,14 @@ Things to try in the first two minutes:
     <td colspan="2"><img src="docs/images/fill-form.png" alt="The add form after typing one sentence and pressing Fill form: description, due date, priority and category are filled in, with a note that the AI helper filled them and that nothing is saved until Add"><p align="center"><sub>Fill form: one sentence fills the fields, nothing is saved until Add (<a href="#features">features</a>, <a href="server/eval/README.md">evaluation</a>)</sub></p></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/images/subtasks-and-order.png" alt="Two todos in the list: the second has three subtasks, one ticked, a 1/3 subtasks badge and up and down buttons to move it"><p align="center"><sub>Subtasks with a progress badge, an Add field per todo, and buttons (or drag and drop) to put the todos in your own order (<a href="#features">features</a>)</sub></p></td>
+    <td colspan="2"><img src="docs/images/subtasks-and-order.png" alt="The list with six todos: one has three subtasks, one ticked, a 1/3 subtasks badge and an Add field; the others show a small Add a subtask link; every card has up and down buttons"><p align="center"><sub>Subtasks with a progress badge, an Add a subtask link on each todo, and buttons (or drag and drop) to put the todos in your own order (<a href="#features">features</a>)</sub></p></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/images/api-docs.png" alt="Swagger UI at /docs listing the API routes grouped as Auth, Todos and Data, with an Authorize button for the token"><p align="center"><sub>Swagger UI at <code>/docs</code>, built from <code>/openapi.json</code> (<a href="#api-reference">API reference</a>)</sub></p></td>
   </tr>
 </table>
 
-<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16, and the subtasks screenshot from a local server with the demo account on 2026-11-23.</sub>
+<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16, and the subtasks screenshot from the live site with the demo account on 2026-11-23.</sub>
 
 ## Features
 
@@ -359,7 +359,7 @@ Free-tier limits a visitor notices (checked 2026-10-17): Render's free service s
 - Reminders are in the page: a browser notification needs the site open in a tab, and there is no email or phone push. A repeating task is created when you tick it, so a task nobody ticks does not repeat. A monthly task clamps to a shorter month and stays on the clamped day afterwards (31 Jan, 28 Feb, 28 Mar).
 - Subtasks are one level deep, are not exported or imported, and have no due date, priority or reordering in the page (the API can reorder them with `parent_id`). Dragging a card does not work on a touch screen; the up and down buttons do.
 - The order is last write wins: two tabs that reorder at the same time end with whichever request arrived last.
-- Subtasks and ordering were checked on a local API and Postgres with the demo account (2026-11-23), not yet on the live site.
+- Subtasks and ordering were checked on the live site with the demo account on 2026-11-23 (add, tick, 1/3 badge, move up, drag, order kept after a new login); the test data was removed afterwards. Not checked: a phone, a slow connection, or two people using one account.
 - Categories cannot be renamed or deleted in one step; a category disappears from the list when no task uses it, and renaming means editing each task.
 - Lighthouse was run on the login page only; the logged-in screens are not audited.
 - Fill from one sentence: on a fixed set of 85 hand-labelled sentences (today fixed to Monday 2026-11-09), the model with prompt `nl-task-v2` got description, due date and priority all right in 94.1% of them, and the rule parser 95.3%; the rule parser was written with those sentences in view, so that tie flatters it. On 25 differently worded sentences written afterwards and run once without tuning, the model got 84% and the rules 68% (a small sample). The prompt was tuned on 64 of the 85; the other 21 were held back (model 100%, but the prompt moved little between versions). Category is reported apart (model 63.5%, rules 80%) because the labels are partly a matter of taste. "next friday" on a Monday means the Friday of the same week by this project's rule. Measured 2026-11-09 on `gemini-3.5-flash-lite`; the quota is in memory, so it resets when the API restarts.
