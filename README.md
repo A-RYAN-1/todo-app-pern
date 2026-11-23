@@ -107,7 +107,7 @@ Things to try in the first two minutes:
   </tr>
 </table>
 
-<sub>Screenshots taken from the live site with the demo account: the list and Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16, and the subtasks screenshot from the live site with the demo account on 2026-11-23.</sub>
+<sub>Screenshots taken from the live site with the demo account: the list, filter and edit screens on 2026-11-23, Fill form on 2026-11-09, the others on 2026-10-17. The API docs screenshot is from a local server on 2026-11-16, and the subtasks screenshot from the live site with the demo account on 2026-11-23.</sub>
 
 ## Features
 
